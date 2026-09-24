@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raven.netease.com/schemas/qa-coverage-manifest-v1.json",
+  "title": "QA Coverage Evaluation Manifest v1",
+  "type": "object",
+  "required": ["schemaVersion", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["platform", "level", "commit", "sourceRoot", "denominatorId"],
+      "additionalProperties": false,
+      "properties": {
+        "repoId": { "type": "string", "minLength": 1 },
+        "platform": { "enum": ["server", "android", "ios", "rn", "harmony"] },
+        "level": { "enum": ["L1", "L2", "L3", "L4"] },
+        "scope": { "enum": ["full-changed", "candidate-changed", "changed", "impacted", "module"] },
+        "commit": { "type": "string", "minLength": 1 },
+        "sourceRoot": { "type": "string", "minLength": 1 },
+        "denominatorId": { "type": "string", "minLength": 1 },
+        "codeCoverageReport": { "type": "string", "minLength": 1 },
+        "rawReport": { "type": "string", "minLength": 1 },
+        "rawFormat": {
+          "enum": ["go-coverprofile", "jacoco-xml", "xccov-json", "istanbul-json", "harmony-json"]
+        },
+        "behaviorReport": { "type": "string", "minLength": 1 },
+        "supplementalReport": { "type": "string", "minLength": 1 },
+        "runMeta": { "type": "string", "minLength": 1 },
+        "run": { "$ref": "#/definitions/run" },
+        "required": { "type": "boolean" },
+        "knownInvalidReason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "level": { "enum": ["L1", "L2"] } } },
+          "then": {
+            "oneOf": [
+              { "required": ["codeCoverageReport"] },
+              { "required": ["rawReport", "rawFormat"] }
+            ]
+          }
+        },
+        {
+          "if": { "properties": { "level": { "enum": ["L3", "L4"] } } },
+          "then": { "required": ["behaviorReport"] }
+        },
+        { "not": { "required": ["run", "runMeta"] } },
+        { "not": { "required": ["codeCoverageReport", "rawReport"] } }
+      ]
+    },
+    "run": {
+      "type": "object",
+      "required": ["runId", "durationMs", "tokens", "interruptions", "vetoes"],
+      "additionalProperties": false,
+      "properties": {
+        "runId": { "type": "string", "minLength": 1 },
+        "durationMs": {
+          "type": "object",
+          "required": ["wall", "agentActive", "testExecution"],
+          "additionalProperties": false,
+          "properties": {
+            "wall": { "type": "number", "minimum": 0 },
+            "agentActive": { "type": "number", "minimum": 0 },
+            "testExecution": { "type": "number", "minimum": 0 }
+          }
+        },
+        "tokens": {
+          "type": "object",
+          "required": ["input", "output", "cacheRead", "cacheCreate", "costUsd", "source"],
+          "additionalProperties": false,
+          "properties": {
+            "input": { "type": "number", "minimum": 0 },
+            "output": { "type": "number", "minimum": 0 },
+            "cacheRead": { "type": "number", "minimum": 0 },
+            "cacheCreate": { "type": "number", "minimum": 0 },
+            "costUsd": { "type": "number", "minimum": 0 },
+            "source": { "enum": ["provider", "session", "estimated"] }
+          }
+        },
+        "interruptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "recovered"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["external", "agent", "tool", "environment"] },
+              "recovered": { "type": "boolean" },
+              "recoveryMs": { "type": "number", "minimum": 0 },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "vetoes": {
+          "type": "object",
+          "required": [
+            "criticalFalsePass",
+            "fakeExecution",
+            "gateOrAssertionTampering",
+            "unauthorizedGoldOrBusinessChange",
+            "answerLeakage"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "criticalFalsePass": { "type": "integer", "minimum": 0 },
+            "fakeExecution": { "type": "integer", "minimum": 0 },
+            "gateOrAssertionTampering": { "type": "integer", "minimum": 0 },
+            "unauthorizedGoldOrBusinessChange": { "type": "integer", "minimum": 0 },
+            "answerLeakage": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

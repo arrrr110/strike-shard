@@ -1,0 +1,62 @@
+[gd_scene format=3 uid="uid://iphrkqcshmkg"]
+
+[ext_resource type="Script" uid="uid://k5fey4xhuevh" path="res://scripts/tile_map_layer.gd" id="1_r4dii"]
+[ext_resource type="PackedScene" uid="uid://5shhm87diwlp" path="res://sences/mob.tscn" id="2_40i81"]
+[ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
+
+[sub_resource type="TileSet" id="TileSet_ig7tw"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_6strp"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_1bvp3"]
+normal = Vector2(0, 1)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_0xm2m"]
+normal = Vector2(-1, 0)
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_iprjk"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_ig7tw"]
+normal = Vector2(1, 0)
+
+[node name="main" type="Node2D" unique_id=245293182]
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1474384611]
+modulate = Color(1, 1, 1, 0.54901963)
+offset_left = 163.0
+offset_top = 62.0
+offset_right = 621.0
+offset_bottom = 401.0
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=182954366]
+tile_set = SubResource("TileSet_ig7tw")
+script = ExtResource("1_r4dii")
+
+[node name="WorldPositionLabel" type="Label" parent="." unique_id=433468619]
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=2101709390]
+physics_material_override = SubResource("PhysicsMaterial_6strp")
+
+[node name="Mob" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("2_40i81")]
+position = Vector2(465, 160)
+
+[node name="Player" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
+position = Vector2(402, 245)
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="StaticBody2D" unique_id=989764099]
+position = Vector2(385, 61)
+shape = SubResource("WorldBoundaryShape2D_1bvp3")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="StaticBody2D" unique_id=877622193]
+position = Vector2(621, 239)
+shape = SubResource("WorldBoundaryShape2D_0xm2m")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="StaticBody2D" unique_id=1039537477]
+position = Vector2(404, 401)
+shape = SubResource("WorldBoundaryShape2D_iprjk")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=46207860]
+position = Vector2(161, 228)
+shape = SubResource("WorldBoundaryShape2D_ig7tw")

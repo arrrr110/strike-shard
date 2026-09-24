@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raven.netease.com/schemas/qa-unit-coverage-observation-v1.json",
+  "title": "QA Unit Coverage Observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repoId",
+    "platform",
+    "level",
+    "scope",
+    "snapshotCommit",
+    "sourceRoot",
+    "metricSource",
+    "metric"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "qa-unit-coverage-observation/v1" },
+    "repoId": { "type": "string", "minLength": 1 },
+    "platform": { "enum": ["ios", "android", "rn"] },
+    "level": { "enum": ["L1", "L2"] },
+    "scope": { "enum": ["full-changed", "candidate-changed", "changed", "impacted", "module"] },
+    "snapshotCommit": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+    },
+    "sourceRoot": { "type": "string", "minLength": 1 },
+    "denominatorId": { "type": "string", "minLength": 1 },
+    "denominatorEvidence": { "$ref": "#/$defs/evidence" },
+    "metricSource": { "enum": ["coverage.lines", "coverage.changedLines"] },
+    "metric": { "$ref": "#/$defs/metric" },
+    "codeCoverageReport": { "$ref": "#/$defs/evidence" }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["denominatorId", "denominatorEvidence", "codeCoverageReport"],
+      "properties": {
+        "metric": { "$ref": "#/$defs/evidenceBackedMetric" }
+      }
+    },
+    {
+      "type": "object",
+      "properties": {
+        "metric": { "$ref": "#/$defs/notCollectedMetric" }
+      },
+      "not": { "required": ["codeCoverageReport"] },
+      "allOf": [
+        {
+          "type": "object",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["denominatorId", "denominatorEvidence"]
+            },
+            {
+              "type": "object",
+              "not": {
+                "anyOf": [
+                  { "required": ["denominatorId"] },
+                  { "required": ["denominatorEvidence"] }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["covered", "total", "pct", "status"],
+      "properties": {
+        "covered": { "type": "number", "minimum": 0 },
+        "total": { "type": "number", "minimum": 0 },
+        "pct": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "status": { "enum": ["COLLECTED", "NOT_COLLECTED", "INVALID"] },
+        "reason": { "type": "string" }
+      }
+    },
+    "evidenceBackedMetric": {
+      "allOf": [
+        { "$ref": "#/$defs/metric" },
+        {
+          "type": "object",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": { "status": { "const": "COLLECTED" } }
+            },
+            {
+              "type": "object",
+              "required": ["reason"],
+              "properties": {
+                "pct": { "type": "null" },
+                "status": { "const": "INVALID" },
+                "reason": { "type": "string", "minLength": 1, "pattern": "\\S" }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "notCollectedMetric": {
+      "allOf": [
+        { "$ref": "#/$defs/metric" },
+        {
+          "type": "object",
+          "required": ["reason"],
+          "properties": {
+            "covered": { "const": 0 },
+            "total": { "const": 0 },
+            "pct": { "type": "null" },
+            "status": { "const": "NOT_COLLECTED" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "format"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![\\s\\S]*\\u0000)(?=[\\s\\S]*\\S)[\\s\\S]+$"
+        },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "format": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![\\s\\S]*\\u0000)(?=[\\s\\S]*\\S)[\\s\\S]+$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "ucdp-runtime/v1",
+  "title": "UCDP Cases Runtime State",
+  "description": "Per-case execution runtime state persisted at ravenspec/changes/<id>/test/ai/_runtime.json (legacy: test/cases/_runtime.json — read-only compat).",
+  "type": "object",
+  "required": ["$schema", "generated_at", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "const": "ucdp-runtime/v1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "cases": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/caseRuntime" }
+    }
+  },
+  "definitions": {
+    "caseRuntime": {
+      "type": "object",
+      "required": ["exec_status", "runs"],
+      "additionalProperties": false,
+      "properties": {
+        "exec_status": {
+          "enum": [
+            "not_run",
+            "running",
+            "passed",
+            "failed",
+            "flaky",
+            "skipped",
+            "blocked",
+            "manual_pending",
+            "manual_passed",
+            "manual_failed"
+          ]
+        },
+        "exec_round": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "exec_attribution": {
+          "enum": ["case-defect", "data-defect", "script-defect", "business-code", "infra", "flaky"]
+        },
+        "exec_duration_ms": { "type": "integer", "minimum": 0 },
+        "exec_last_at": { "type": "string", "format": "date-time" },
+        "exec_artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "screen": { "type": "string" },
+            "screenshot": { "type": "string" },
+            "stack": { "type": "string" },
+            "log": { "type": "string" }
+          }
+        },
+        "runs": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "$ref": "#/definitions/run" }
+        },
+        "manual_confirm": {
+          "type": "object",
+          "required": ["by", "ts", "result"],
+          "additionalProperties": false,
+          "properties": {
+            "by": { "type": "string", "minLength": 1 },
+            "ts": { "type": "string", "format": "date-time" },
+            "result": { "enum": ["pass", "fail"] },
+            "note": { "type": "string" },
+            "evidence_url": { "type": "string" }
+          }
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["round", "ts", "result", "duration_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "round": { "type": "integer", "minimum": 0 },
+        "ts": { "type": "string", "format": "date-time" },
+        "result": { "enum": ["pass", "fail", "flaky", "skipped"] },
+        "attribution": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

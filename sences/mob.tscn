@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://5shhm87diwlp"]
+
+[ext_resource type="Texture2D" uid="uid://dyosrjvgu4txh" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_1.png" id="1_nokgg"]
+[ext_resource type="Texture2D" uid="uid://dg0suf118rea6" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_2.png" id="2_ubaqv"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_6strp"]
+radius = 14.142136
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_joqdt"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_nokgg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_ubaqv")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Mob" type="RigidBody2D" unique_id=1811971316]
+gravity_scale = 0.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2045435801]
+shape = SubResource("CircleShape2D_6strp")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=191182854]
+rotation = -1.5707964
+scale = Vector2(0.3, 0.3)
+sprite_frames = SubResource("SpriteFrames_joqdt")
+frame = 1
+frame_progress = 0.6726278
