@@ -1,0 +1,44 @@
+sences/player.tscn
+  d39375774d64df8d 10,43-44
+scripts/player.gd
+  d39375774d64df8d 3-28,32-41,43-45,47-55,57-108,110-138
+sences/main.tscn
+  d39375774d64df8d 5-6,11-25,67,69,71-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "30c28e3b07829cf316fd89ec86919a3cef2e92a4",
+  "prompts": {
+    "d39375774d64df8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc86a96-6796-4f5e-830c-367bf97e416c",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 171,
+      "total_deletions": 36,
+      "accepted_lines": 157,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "sences/player.tscn": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "sences/main.tscn": {
+          "additions": 24,
+          "deletions": 3,
+          "accepted_lines": 24
+        },
+        "scripts/player.gd": {
+          "additions": 144,
+          "deletions": 32,
+          "accepted_lines": 130
+        }
+      }
+    }
+  }
+}
