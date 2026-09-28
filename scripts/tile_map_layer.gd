@@ -1,6 +1,5 @@
 extends TileMapLayer
 
-@onready var tilemap = $""
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	pass # Replace with function body.
@@ -15,3 +14,4 @@ func _input(event):
 		##print(str(event.position))
 		# update labels ,node不是子节点，不能用$
 		$"../WorldPositionLabel".text = "World Position:" + str(event.position)
+		$"../PlayerPositionLabel".text = "Player Position:" + str($"../StaticBody2D/Player".position)
