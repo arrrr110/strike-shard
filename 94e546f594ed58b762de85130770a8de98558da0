@@ -1,0 +1,26 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "94e546f594ed58b762de85130770a8de98558da0",
+  "prompts": {
+    "003d43b08e0970ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "812a1e29-3d76-4493-9813-ed4bfdb9452b",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "project.godot": {
+          "additions": 1
+        }
+      }
+    }
+  }
+}
