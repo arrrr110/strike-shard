@@ -3,7 +3,9 @@
 [ext_resource type="Texture2D" uid="uid://d3u3y2hi87xgi" path="res://dodge_the_creeps_2d_assets/art/playerGrey_up1.png" id="1_2tqca"]
 [ext_resource type="Script" uid="uid://blix3o11fdnmx" path="res://scripts/player.gd" id="1_5s88j"]
 [ext_resource type="Texture2D" uid="uid://bvqrupm61dfp3" path="res://dodge_the_creeps_2d_assets/art/playerGrey_up2.png" id="2_5s88j"]
+[ext_resource type="Texture2D" uid="uid://dyosrjvgu4txh" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_1.png" id="2_isc1k"]
 [ext_resource type="Texture2D" uid="uid://bu050k1b81pbk" path="res://dodge_the_creeps_2d_assets/art/playerGrey_walk1.png" id="3_36xh1"]
+[ext_resource type="Texture2D" uid="uid://dg0suf118rea6" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_2.png" id="3_427ck"]
 [ext_resource type="Texture2D" uid="uid://4pi5cpu1fqve" path="res://dodge_the_creeps_2d_assets/art/playerGrey_walk2.png" id="4_isc1k"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_5s88j"]
@@ -14,6 +16,17 @@ radius = 16.03122
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_joqdt"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_isc1k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_427ck")
+}],
+"loop": 1,
+"name": &"mob",
+"speed": 5.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": ExtResource("1_2tqca")
@@ -50,5 +63,4 @@ shape = SubResource("CircleShape2D_6strp")
 position = Vector2(0, 4)
 scale = Vector2(0.3, 0.3)
 sprite_frames = SubResource("SpriteFrames_joqdt")
-animation = &"up"
-frame_progress = 0.73069686
+animation = &"walk"

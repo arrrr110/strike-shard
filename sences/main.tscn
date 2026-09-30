@@ -1,28 +1,13 @@
 [gd_scene format=3 uid="uid://iphrkqcshmkg"]
 
 [ext_resource type="Script" uid="uid://k5fey4xhuevh" path="res://scripts/tile_map_layer.gd" id="1_r4dii"]
+[ext_resource type="PackedScene" uid="uid://5shhm87diwlp" path="res://sences/mob.tscn" id="2_r4dii"]
 [ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
-[ext_resource type="Texture2D" uid="uid://dyosrjvgu4txh" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_1.png" id="4_enemy1"]
-[ext_resource type="Texture2D" uid="uid://dg0suf118rea6" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_2.png" id="5_enemy2"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_6strp"]
 bounce = 0.8
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_mob"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": ExtResource("4_enemy1")
-}, {
-"duration": 1.0,
-"texture": ExtResource("5_enemy2")
-}],
-"loop": 1,
-"name": &"default",
-"speed": 5.0
-}]
 
 [sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_1bvp3"]
 normal = Vector2(0, 1)
@@ -64,14 +49,8 @@ physics_material_override = SubResource("PhysicsMaterial_6strp")
 width = 3.0
 default_color = Color(0.99999887, 0.46086323, 0.46668625, 1)
 
-[node name="Mob" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("3_mqxhw")]
-position = Vector2(465, 160)
-controllable = false
-
-[node name="AnimatedSprite2D" parent="StaticBody2D/Mob" index="1"]
-rotation = -1.5707964
-sprite_frames = SubResource("SpriteFrames_mob")
-animation = &"default"
+[node name="Mob" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("2_r4dii")]
+position = Vector2(456, 166)
 
 [node name="Player" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
 position = Vector2(402, 245)
@@ -91,3 +70,9 @@ shape = SubResource("WorldBoundaryShape2D_iprjk")
 [node name="start" type="CollisionShape2D" parent="StaticBody2D" unique_id=46207860]
 position = Vector2(161, 228)
 shape = SubResource("WorldBoundaryShape2D_ig7tw")
+
+[node name="LifeCycle" type="Control" parent="." unique_id=1652116568]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
