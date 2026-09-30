@@ -1,0 +1,35 @@
+ravenspec/changes/turn-lifecycle/.ravenspec.yaml
+  18a9556ce2415ce5 1-3
+ravenspec/changes/turn-lifecycle/PRD.md
+  18a9556ce2415ce5 1-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "00c033b5f9dffc57efc76eab7b9592e2f347bf6d",
+  "prompts": {
+    "18a9556ce2415ce5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed6346ff-f9cf-4b7e-98eb-447367961acc",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 198,
+      "total_deletions": 0,
+      "accepted_lines": 198,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "ravenspec/changes/turn-lifecycle/.ravenspec.yaml": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "ravenspec/changes/turn-lifecycle/PRD.md": {
+          "additions": 195,
+          "accepted_lines": 195
+        }
+      }
+    }
+  }
+}
