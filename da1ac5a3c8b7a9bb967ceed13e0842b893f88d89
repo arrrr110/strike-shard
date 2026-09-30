@@ -1,0 +1,54 @@
+ravenspec/changes/turn-lifecycle/specs/board-rest-detection/spec.md
+  18a9556ce2415ce5 1-86
+ravenspec/changes/turn-lifecycle/PRD.md
+  18a9556ce2415ce5 5-6,34,37,53-54,66,76-80,114,126-127,146-150,157,171-172,175,177,179-192
+ravenspec/changes/turn-lifecycle/specs/zoc-siege/spec.md
+  18a9556ce2415ce5 1-114
+ravenspec/changes/turn-lifecycle/specs/piece-aiming/spec.md
+  18a9556ce2415ce5 1-143
+ravenspec/changes/turn-lifecycle/specs/turn-lifecycle/spec.md
+  18a9556ce2415ce5 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "da1ac5a3c8b7a9bb967ceed13e0842b893f88d89",
+  "prompts": {
+    "18a9556ce2415ce5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed6346ff-f9cf-4b7e-98eb-447367961acc",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 460,
+      "total_deletions": 24,
+      "accepted_lines": 460,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "ravenspec/changes/turn-lifecycle/specs/zoc-siege/spec.md": {
+          "additions": 114,
+          "accepted_lines": 114
+        },
+        "ravenspec/changes/turn-lifecycle/PRD.md": {
+          "additions": 41,
+          "deletions": 24,
+          "accepted_lines": 41
+        },
+        "ravenspec/changes/turn-lifecycle/specs/turn-lifecycle/spec.md": {
+          "additions": 76,
+          "accepted_lines": 76
+        },
+        "ravenspec/changes/turn-lifecycle/specs/piece-aiming/spec.md": {
+          "additions": 143,
+          "accepted_lines": 143
+        },
+        "ravenspec/changes/turn-lifecycle/specs/board-rest-detection/spec.md": {
+          "additions": 86,
+          "accepted_lines": 86
+        }
+      }
+    }
+  }
+}
