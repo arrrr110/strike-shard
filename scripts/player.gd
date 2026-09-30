@@ -26,6 +26,14 @@ extends RigidBody2D
 ## 兜底：球一直不停时最多锁这么久（0 = 不设上限）
 @export var max_lock_time: float = 6.0
 
+@export_group("贴图倾斜（不倒翁）")
+## 每 1 rad/s 自转对应多少弧度倾斜：越大倾得越明显
+@export var tilt_per_spin: float = 0.06
+## 最大倾斜角度
+@export_range(0.0, 90.0, 1.0) var max_tilt_deg: float = 25.0
+## 倾斜跟随 / 回正的速度：越大回正越快
+@export_range(1.0, 60.0, 1.0) var tilt_stiffness: float = 14.0
+
 var thrust = Vector2(0, -250)
 var torque = 20000
 
@@ -34,8 +42,13 @@ var charging := false          # 是否正在蓄力（左键按住且鼠标在�
 var locked := false            # 球还在运动：禁止画线
 var lock_armed := false        # 冲量生效、速度真的起来后才置 true
 var lock_time := 0.0
+var tilt := 0.0                # 贴图当前倾斜（弧度），0 = 正朝上
 var aim_target := Vector2.ZERO # 瞄准终点（世界坐标），鼠标出界时保留上一次的值
 
+@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var sprite_base_rotation: float = sprite.rotation # 场景里设的基准朝向（Mob 被覆盖成 -90°）
+@onready var sprite_base_position: Vector2 = sprite.position
+@onready var max_tilt: float = deg_to_rad(max_tilt_deg)
 @onready var line_2d := get_node_or_null("../AimLine") as Line2D
 @onready var idle_color: Color = line_2d.default_color if line_2d != null else Color.WHITE
 @onready var idle_width: float = line_2d.width if line_2d != null else 1.0
@@ -55,6 +68,7 @@ func _process(delta: float) -> void:
 			locked = false
 
 	_update_line()
+	_update_sprite_tilt(delta)
 
 func _input(event: InputEvent) -> void:
 	if not controllable:
@@ -116,6 +130,18 @@ func _set_line(end: Vector2) -> void:
 		line_2d.to_local(global_position),
 		line_2d.to_local(end),
 	])
+
+## 不倒翁贴图：抵消刚体的自转，只按"自转趋势"左右倾斜，转停了自己回正朝上。
+## 刚体照样在物理世界里转（碰撞/摩擦需要），只是视觉上不让它跟着翻。
+func _update_sprite_tilt(delta: float) -> void:
+	# 顺时针（angular_velocity > 0）向右倾，逆时针向左倾；角度上限由 max_tilt 夹住
+	var target := clampf(angular_velocity * tilt_per_spin, -max_tilt, max_tilt)
+	# 指数平滑：帧率无关，且自带"回正时略有惯性"的不倒翁感
+	tilt = lerpf(tilt, target, 1.0 - exp(-tilt_stiffness * delta))
+
+	sprite.rotation = sprite_base_rotation - rotation + tilt
+	# 位置偏移也要抵消父节点旋转，否则贴图会绕着球心画一个 4px 的圈
+	sprite.position = sprite_base_position.rotated(-rotation)
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# 恒定减速（滚动阻力）：与速度无关，减到 0 就精确停住，不像阻尼那样留一条长尾
