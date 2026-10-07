@@ -2,8 +2,6 @@
 .godot/
 /android/
 
-design
-
 # auto route
 src/route-config.js
 src/route-config.ts
