@@ -28,23 +28,25 @@ main (Node2D)
 ├── TileMapLayer                       （空，只挂调试 Label 脚本）
 ├── WorldPositionLabel / PlayerPositionLabel   调试用
 ├── StaticBody2D                       ← 棋盘容器：四壁 + 三枚棋子 + Mob + AimLine
-│   ├── Player1 / Player2 / Player3    player.tscn 实例
-│   ├── Mob                            mob.tscn 实例（也挂 player.gd，controllable = false）
+│   ├── Player1 / Player2 / Player3    player.tscn 实例（我方）
+│   ├── Mob / Mob2 / Mob3              mob.tscn 实例（敌方，也挂 player.gd，owner_id = 1）
 │   ├── AimLine                        Line2D，全盘共享一条
 │   └── top / end / bottom / start     四面 WorldBoundaryShape2D 墙，friction = 0
 ├── TurnController                     ← 选择协调（scripts/turn_controller.gd）
 ├── LifeCycle                          ← Label，显示当前阶段名
 ├── EndTurnButton                      ← Button，"结束回合"
-└── GameFlow                           ← 阶段机（scripts/game_flow.gd）
+├── GameFlow                           ← 阶段机（scripts/game_flow.gd）
+└── HpOverlay                          ← 血量显示（scripts/hp_overlay.gd，调试级）
 ```
 
-四个脚本、三个组：
+五个脚本、三个组：
 
 | 脚本 | 职责 | 所在组 |
 | --- | --- | --- |
-| `game_flow.gd` | 阶段机：阶段推进、停留、棋盘级静止判定、发射边锁、输入许可、按钮与 Label | `game_flow` |
+| `game_flow.gd` | 阶段机：阶段推进、停留、棋盘级静止判定、发射边锁、输入许可、按钮与 Label、**归属方血量池**、**棋子名单增删** | `game_flow` |
 | `turn_controller.gd` | 选择协调：全盘唯一 `selected_piece`、鼠标解释、发射信号 | `turn_controller` |
-| `player.gd` | 棋子：蓄力、瞄准线、轨迹预测、贴图倾斜、恒定减速 | `pieces`（含 Mob） |
+| `player.gd` | 棋子：蓄力、瞄准线、轨迹预测、贴图倾斜、恒定减速、**归属与血量** | `pieces`（含 Mob） |
+| `hp_overlay.gd` | 在棋子头上画血量、左下角画归属方血量池。**调试级，不是最终 UI** | — |
 | `tile_map_layer.gd` | 只维护两个调试 Label | — |
 
 ## 阶段机（`scripts/game_flow.gd`）
@@ -125,7 +127,11 @@ Label 是 `IGNORE` mouse_filter，不吃点击。
 - **遍历 `pieces` 组**（含 Mob），线速度与角速度**各自独立阈值**
 - **去抖**：连续 N 个物理帧都静止才算数（默认 6 帧 @60Hz = 0.1 秒）
 - **超时兜底**：等太久强制放行，并 `push_warning` 报出还在动的是哪一枚、速度多少
-- **零分配**：棋子数组在 `_ready` 里缓存，热路径上不构造新容器（性能红线）
+- **零分配**：棋子数组由 `GameFlow` 在 `_ready` 里从 `pieces` 组播一次种，
+  之后靠 `register_piece()` / `unregister_piece()` 增删——**不每帧重新扫组**
+  （`get_nodes_in_group` 每次调用都新建数组）。
+  **运行时新生成的棋子必须登记**（将来的召唤物走这条路），否则静止判定扫不到它、
+  阶段会在它还在动的时候推进。棋子自己 `_exit_tree` 时自动摘除。
 
 导出参数（占位值，按 `constraints.md` 的约定留给用户在编辑器里试）：
 `rest_lin_speed = 10.0` / `rest_ang_speed = 0.5` / `rest_debounce_frames = 6` /
@@ -169,7 +175,32 @@ emit 在 `clear_selection()` **之后**，让阶段机看到的是最终状态�
 ## 棋子（`scripts/player.gd`）
 
 一枚 `RigidBody2D`。`player.tscn` 与 `mob.tscn` **共用同一个脚本**：
-Mob 通过 `controllable = false` 变成"不可被选中、但照样被撞着走"的靶子（脚本里原本就为此写了注释）。
+Mob 通过 `owner_id = 1` 变成"敌方"——不可被选中、但仍被撞着走。
+
+### 归属与血量（2026-10-10 加入）
+
+| 字段 | 含义 |
+| --- | --- |
+| `owner_id` | `0` = 我方 / `1` = 敌方。决定伤害去向，也决定能不能被选中 |
+| `kind` | `CHARACTER` / `SUMMON`。角色不可摧毁，召唤物血量归零即移除 |
+| `max_hp` / `hp` | 角色血量，下限 0。到 0 即**薄弱点**：不退场、仍全功能可用，但受到的伤害全额转给归属方 |
+| `is_selectable()` | 能不能被选中 = `owner_id == 0 and kind == CHARACTER` |
+
+**`controllable` 已退役。** 它原先同时管"这枚是谁的"和"我能不能操作它"——
+现在归属由 `owner_id` 回答，能不能操作由阶段机发放
+（`TurnController._can_operate()` → `GameFlow.can_operate_pieces()`）。
+不拆开的话，二期接入人类对手时"敌方是另一个玩家"就无处安放。
+
+**归属方血量池不在棋子上，在 `GameFlow`。** 它是**对局级**状态（比回合长寿），
+索引 = `owner_id`，归零即该方失败。`damage_owner(who, amount)` 是唯一的修改入口
+（目前**没有调用方**——碰撞伤害是下一步；先放着是为了让血量池能被改，否则显示出来的 99 永远是个常量）。
+
+### 血量显示是调试级的
+
+`hp_overlay.gd` 挂在 `main` 下（**不在棋盘容器里**），用世界坐标在每个棋子头上画血量。
+不挂在棋子下面的原因：棋子是刚体会自转，挂上去的 Label 会跟着转，还得再写一份抵消旋转的逻辑。
+代价是设计期在编辑器里看不到，只有运行起来才画。**最终的血条 / 头像框是美术与布局工作，归用户**——
+那时把这个节点删掉即可。
 
 ### 蓄力
 
@@ -199,6 +230,39 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 `_effective_bounce()` 把球和墙两边的 `bounce` 都读出来，按 **Godot 自己的规则**合并
 （**相加后夹到 1**，实测确认，不是取最大值）。所以调任何一个材质，真实运动和蓄力条
 同时跟着变——这就是"两边共用一套参数"的落点。
+
+## 碰撞结算（2026-10-10 加入）
+
+**数值链路已经通了**：撞上就当场扣血。但这是**最简形态**，不是文档里那套完整设计。
+
+```
+棋子体碰体 → player.gd 上报 bumped(other) → GameFlow._resolve_collision → 双方各打一次
+```
+
+| 环节 | 现在怎么做的 |
+| --- | --- |
+| 检测 | `RigidBody2D.body_entered`（两个 .tscn 都开了 `contact_monitor`）。**撞墙被过滤掉**——只有对方也在 `pieces` 组里才算角色碰撞 |
+| 资格 | **只有"行动角色 × 敌方"才结算**（2026-10-10）。行动角色 = 本回合 `piece_launched` 的那一枚，记在 `GameFlow._actor`，`TURN_START` 清空。撞自己人、被撞飞的角色再撞别人，都直接 return |
+| 上报 | 棋子只发 `bumped` 信号，**不判断要不要结算、不自己扣血**（规则属于规则层） |
+| 结算 | `GameFlow._resolve_collision(a, b)` → **双向**：`_exchange(a,b)` 与 `_exchange(b,a)` 各一次。双方各打出自己的 `atk`，互相扣血（2026-10-10 用户确认）。**只有 ZOC 结算是单向的** |
+| 伤害 | `攻击方 atk`。**类型克制暂时屏蔽**（2026-10-10），所以现在没有倍率；启用后才有"克制方向 ×2"（护卫>斗士>施法者>护卫；任一方是 `NONE` 则恒 1 倍） |
+| 去向 | 一行 `mini(dmg, defender.hp)` 自然涵盖三档：角色先吃、吃不完的转给归属方、`hp == 0`（薄弱点）则全额转移 |
+
+**去重是必须的**：`body_entered` 对接触**双方各发一次**，不去重就会把同一次碰撞结算两遍。
+`GameFlow._settled_pairs` 每物理帧清空，键是**与顺序无关**的两个 instance_id（红线 #2：
+不依赖谁先被回调）。实测同类型对撞各掉 30 而不是 60。
+
+**已知的粗糙处**（都不是 bug，是"还没做"）：
+
+- **没有冻结物理、没有事件队列、没有表现**。文档里的完整设计是
+  "冻结 → 生成事件 → 全序键排序 → 串行结算 → 表现 → 排空 → 解冻"。
+  那套服务的核心需求是**表现**（伤害数字在撞击那一刻跳出来、运动暂停等待）。
+  现在没有表现，先不引入闸门与队列——接表现时 `_resolve_collision` 就是"生成碰撞事件"的位置。
+- **伤害不看速度**。这是"伤害 = atk"的直接后果：轻轻擦一下和全力一撞伤害相同。
+  实测里 p1 只是"移到"m1 旁边就掉了 30 血。**如果手感不对，这是第一个要调的地方**
+  （回退点是"atk 为基、速度调制"，见 [20-character PRD](../20-character/PRD.md) 的待定）。
+- **接触抖动可能造成多次结算**。`body_entered` 是"接触开始"触发一次；
+  如果两枚棋子反复分离又接触，会重复结算。目前没观察到，等实测。
 
 ## 棋子的锁定（`locked` 等）
 
@@ -279,7 +343,7 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 | `scripts/player.gd` | 重写：删除 `ui_*` 旧推力与 `_input`；新增轨迹预测、有效弹性、`hit_test` / `set_selected` / `begin_charge` / `release_charge` / `cancel_charge` 能力接口 |
 | `sences/main.tscn` | 新增 `GameFlow` / `TurnController` / `EndTurnButton`；`Player` → `Player1`；四壁加 `friction = 0` |
 | `sences/player.tscn` | 挂 aura 描边材质（`resource_local_to_scene = true`，保证三枚实例各自独立） |
-| `sences/mob.tscn` | 挂 `player.gd` + `controllable = false`，并补齐与棋子一致的物理材质与阻尼模式 |
+| `sences/mob.tscn` | 挂 `player.gd` + `owner_id = 1`，并补齐与棋子一致的物理材质与阻尼模式 |
 | `shaders/aura.gdshader` | 新增 |
 | `scripts/tile_map_layer.gd` | 同步改名后的调试 Label 路径 |
 
@@ -296,7 +360,11 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
     要测蓄力就临时把 `table_rect` 放大，而不是去伪造鼠标。
   - 探针的棋盘**没有挂物理材质**时弹性会退化成 `0.0 + 0.8 = 0.8`，
     与真实 `main.tscn`（`0.8 + 0.8 = 1.0`）不同。曾经因此得出过错误结论。
-  - 每次投掷前要**把所有棋子复位**，否则上一发把别的棋子撞进路径里，样本作废。
+  - 每次投掷前要**复位所有相关状态**，不只是位置：棋子的位置/速度/自转/**血量**、
+    以及 `GameFlow.owner_hp`。漏掉任何一项，上一个子测试的残留都会污染下一个。
+    这一条被反复踩到——一轮验证里连中三次，全部表现为"看起来是代码 bug 的假失败"。
+    写断言时**尽量从当前状态现算期望值**（如"起始血量 / 每撞伤害 = 需要几撞"），
+    比写死数字更抗污染。
   - `--fixed-fps 60` 会把循环压到真实时间，长测试要留足窗口。
 - **手工验证（用户在编辑器里做）**：手感类结论——蓄力速率、去抖窗口、ZOC 半径、
   四壁摩擦——全部以编辑器实测为准，文档只锁机制不锁数值。
@@ -372,7 +440,7 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 由队列排序后继续处理，直到队列为空。规则之间**不互相调用**。
 
 理由：本作有一条真实的四层链：碰撞 → 双向伤害 → 角色血量见底 → 溢出伤害 →
-玩家血量扣减 → 可能对局结束。用递归写，深度和顺序都不可控；用队列写，
+归属方血量扣减 → 可能对局结束。用递归写，深度和顺序都不可控；用队列写，
 顺序是显式的、可断点的、可序列化回放的。
 
 ### 决策 7：全序键定序，核心不认识"卡片"
@@ -449,11 +517,11 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
    │  链路展开：
    │    CollisionEvent
    │      → DamageEvent(A→B, 8) → B.hp: 7 → 0（不够扣的 1 点溢出）
-   │          → OverflowEvent(B, 1) → B 归属方的玩家血量 -1 → (可能) MatchOverEvent
+   │          → OverflowEvent(B, 1) → B 归属方的血量池 -1 → (可能) MatchOverEvent
    │      → DamageEvent(B→A, 6) → A.hp: 12 → 6
    │
    │  注意：B 血量到 0 就停住，**不退场、不死亡**（决策 23）。
-   │  之后打到 B 身上的每一击都会整份溢出到它归属方的玩家血量。
+   │  之后打到 B 身上的每一击都会整份溢出到它归属方的血量池。
    │
 [表现] 时间线消费事件，依次播出"-8 白字 + 爆炸"
    │
@@ -544,7 +612,8 @@ static func siege_of(pieces: Array, target_id: int, actor_id: int, radius: float
 
 ## 故意不做（YAGNI）
 
-- **不做表现层的对象池**：单场 ≤ 10 枚角色，伤害表现峰值不超过十几个节点。等实测有压力再说。
+- **不做表现层的对象池**：单场 ≤ 14 枚物理实体（每方 7 = 3 角色 + 最多 4 召唤物），
+  伤害表现峰值不超过几十个节点。等实测有压力再说。
 - **不做事件的持久化 / 存档**：事件可序列化是为了**测试回放**，不是为了存档。
 - **不做多棋盘 / 分屏**：`PhysicsServer2D.set_active(false)` 是进程级开关，多棋盘下会互相干扰。
 - **不做阶段的并行**：所有阶段严格串行。让"表现"与"下一阶段的准备"重叠执行会让

@@ -19,7 +19,7 @@ radius = 16.03122
 resource_local_to_scene = true
 shader = ExtResource("5_aura")
 shader_parameter/aura_width = 0.0
-shader_parameter/aura_color = Color(0, 1, 0.486275, 1)
+shader_parameter/aura_color = Color(1, 1, 1, 1)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_joqdt"]
 animations = [{
@@ -61,6 +61,8 @@ animations = [{
 physics_material_override = SubResource("PhysicsMaterial_5s88j")
 gravity_scale = 0.0
 linear_damp_mode = 1
+contact_monitor = true
+max_contacts_reported = 4
 script = ExtResource("1_5s88j")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=32226104]

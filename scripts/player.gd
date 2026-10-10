@@ -3,8 +3,32 @@ extends RigidBody2D
 ## 四面墙围出的棋盘区域（世界坐标）：左 161 / 右 621 / 上 61 / 下 401
 @export var table_rect: Rect2 = Rect2(161, 61, 460, 340)
 
-## false = 不可操作的球（棋子 / 靶子）：不可被选中、不画瞄准线，但照样被撞着走
-@export var controllable := true
+## 这枚棋子属于哪一方。`0` = 我方，`1` = 敌方。
+## 它决定伤害的最终去向（薄弱点的溢出打到哪一边），也决定能不能被选中。
+##
+## 原先是 `controllable` 一个布尔同时管"这枚是谁的"和"我能不能操作它"——
+## 两件事混在一起，二期接入人类对手时"敌方是另一个玩家"就无处安放（见 20-character PRD）。
+@export var owner_id: int = 0
+
+@export_group("角色数值（占位值，等数值设计）")
+## 角色还是召唤物。角色不可摧毁；召唤物血量归零即从棋盘移除。
+enum Kind { CHARACTER, SUMMON }
+@export var kind: Kind = Kind.CHARACTER
+
+## 角色类型。克制三角：护卫 > 斗士 > 施法者 > 护卫，克制方向伤害翻倍。
+## 召唤物是 NONE（无属性），既不触发克制也不被克制。
+enum RoleType { NONE, PROTECTOR, FIGHTER, CASTER }
+@export var role_type: RoleType = RoleType.FIGHTER
+
+## 攻击力。伤害 = 攻击方 atk（碰撞速度不参与，见 20-character PRD 的伤害公式）
+@export_range(0, 200, 1) var atk: int = 10
+
+## 最大血量。血量降到 0 即成为**薄弱点**：不退场、仍全功能可用，
+## 但此后受到的伤害全额转移给归属方。
+@export var max_hp: int = 70
+
+## 当前血量，运行时变化，下限 0
+var hp: int = 0
 
 @export_group("选择")
 ## 点选半径（世界坐标 px）：鼠标落在这个圆内就算点中这枚棋子。
@@ -75,9 +99,55 @@ var aim_dir := Vector2.ZERO    # 瞄准方向（单位向量），鼠标贴在�
 @onready var idle_color: Color = line_2d.default_color if line_2d != null else Color.WHITE
 @onready var idle_width: float = line_2d.width if line_2d != null else 1.0
 
+## 与**另一枚棋子**撞上了（撞四壁不算）。只上报事实，不判断要不要结算、更不自己扣血——
+## 结算规则属于规则层（见 game_flow.gd 的 `_resolve_collision`）。
+signal bumped(other: RigidBody2D)
+
 func _ready() -> void:
 	aim_target = global_position
-	add_to_group(&"pieces") # TurnController 靠这个组找到全盘可选的棋子
+	hp = max_hp
+	add_to_group(&"pieces") # GameFlow 靠这个组找到全盘棋子
+	# 撞到别的东西时上报。contact_monitor 已在 .tscn 里打开。
+	body_entered.connect(_on_body_entered)
+	_register_with_game_flow()
+
+
+## 碰撞回调：**只上报事实**。撞墙（StaticBody2D）直接过滤掉，
+## 只有"撞到另一枚棋子"才算一次角色碰撞。
+func _on_body_entered(body: Node) -> void:
+	var other := body as RigidBody2D
+	if other == null or other == self:
+		return
+	if not other.is_in_group(&"pieces"):
+		return
+	bumped.emit(other)
+
+
+## 我打对方时的伤害倍率。
+##
+## ⚠️ **类型克制暂时屏蔽**（2026-10-10 决定，以后再实现）——现在恒为 1.0，
+## 所以 `role_type` 目前对伤害**没有任何影响**。调用点保留着，重新启用时只改这一个函数。
+##
+## 以后再实现时的规则（保留在这里免得忘）：
+##   护卫 > 斗士 > 施法者 > 护卫，克制方向伤害翻倍；
+##   任一方是 NONE（召唤物）则不参与克制，恒为 1 倍。
+func damage_multiplier_against(_other: RigidBody2D) -> float:
+	return 1.0
+
+
+func _exit_tree() -> void:
+	# 被释放时从阶段机的名单里摘掉。召唤物会走这条路（角色永不退场）。
+	var gf := get_tree().get_first_node_in_group(&"game_flow")
+	if gf != null:
+		gf.unregister_piece(self)
+
+
+## 棋子就绪时向阶段机登记。阶段机在我们之前就已经从组里扫过一遍了，
+## 这里是给**运行时新生成的**棋子（将来的召唤物）用的，加进名单才会被静止判定扫到。
+func _register_with_game_flow() -> void:
+	var gf := get_tree().get_first_node_in_group(&"game_flow")
+	if gf != null:
+		gf.register_piece(self)
 
 func _process(delta: float) -> void:
 	var mouse := get_global_mouse_position()
@@ -102,9 +172,15 @@ func _process(delta: float) -> void:
 # 棋子自己不解释鼠标事件：选中是排他的，裁决必须收在一个地方做
 #（见 scripts/turn_controller.gd 的注释）。这里只暴露"能不能被点中"和"选中后能做什么"。
 
+## 能不能被选中。归属必须是**我方**，且必须**是角色**。
+## 召唤物能不能被选中目前是待定项（见 20-character PRD），先按"不能"处理。
+func is_selectable() -> bool:
+	return owner_id == 0 and kind == Kind.CHARACTER
+
+
 ## 鼠标落点是否点中这枚棋子。
 func hit_test(pos: Vector2) -> bool:
-	return controllable and not locked and global_position.distance_to(pos) <= pick_radius
+	return is_selectable() and not locked and global_position.distance_to(pos) <= pick_radius
 
 ## 切换选中态。高亮开关就是切 aura_width：0 = 无描边。
 func set_selected(on: bool) -> void:
@@ -167,7 +243,7 @@ func cancel_charge() -> void:
 func _update_line(mouse: Vector2, in_board: bool) -> void:
 	# 不可操作的球没有瞄准线；没被选中的棋子也不画（全盘只有一枚在写这条共享线）；
 	# 球还在动时同样不画
-	if not controllable or not selected or line_2d == null or locked:
+	if not is_selectable() or not selected or line_2d == null or locked:
 		return
 	if in_board:
 		aim_target = mouse # 只在盘内更新方向，出界保持上一次

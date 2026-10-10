@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
 [ext_resource type="Script" uid="uid://b03m4oh46th1s" path="res://scripts/turn_controller.gd" id="4_turnctl"]
 [ext_resource type="Script" uid="uid://de16r7d3ar80" path="res://scripts/game_flow.gd" id="5_gameflow"]
+[ext_resource type="Script" path="res://scripts/hp_overlay.gd" id="6_hpoverlay"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
@@ -48,21 +49,27 @@ offset_bottom = 46.0
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=2101709390]
 physics_material_override = SubResource("PhysicsMaterial_6strp")
 
+[node name="Mob3" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("2_r4dii")]
+position = Vector2(404, 130)
+
+[node name="Mob2" parent="StaticBody2D" unique_id=536380879 instance=ExtResource("2_r4dii")]
+position = Vector2(343, 171)
+
 [node name="Player3" parent="StaticBody2D" unique_id=1811015880 instance=ExtResource("3_mqxhw")]
-position = Vector2(306, 312)
+position = Vector2(340, 311)
 
 [node name="Player2" parent="StaticBody2D" unique_id=1960507198 instance=ExtResource("3_mqxhw")]
-position = Vector2(400, 312)
+position = Vector2(400, 350)
 
 [node name="AimLine" type="Line2D" parent="StaticBody2D" unique_id=1343671260]
 width = 3.0
 default_color = Color(0.99999887, 0.46086323, 0.46668625, 1)
 
-[node name="Mob" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("2_r4dii")]
-position = Vector2(456, 166)
+[node name="Mob" parent="StaticBody2D" unique_id=474664694 instance=ExtResource("2_r4dii")]
+position = Vector2(461, 168)
 
 [node name="Player1" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
-position = Vector2(494, 311)
+position = Vector2(465, 309)
 
 [node name="top" type="CollisionShape2D" parent="StaticBody2D" unique_id=989764099]
 position = Vector2(385, 61)
@@ -98,3 +105,6 @@ text = "结束回合"
 
 [node name="GameFlow" type="Node" parent="." unique_id=1744399887]
 script = ExtResource("5_gameflow")
+
+[node name="HpOverlay" type="Node2D" parent="."]
+script = ExtResource("6_hpoverlay")

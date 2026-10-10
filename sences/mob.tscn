@@ -28,8 +28,10 @@ animations = [{
 physics_material_override = SubResource("PhysicsMaterial_mob")
 gravity_scale = 0.0
 linear_damp_mode = 1
+contact_monitor = true
+max_contacts_reported = 4
 script = ExtResource("3_playergd")
-controllable = false
+owner_id = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2045435801]
 shape = SubResource("CircleShape2D_6strp")
