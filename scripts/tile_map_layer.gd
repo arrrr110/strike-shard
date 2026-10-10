@@ -14,4 +14,4 @@ func _input(event):
 		##print(str(event.position))
 		# update labels ,node不是子节点，不能用$
 		$"../WorldPositionLabel".text = "World Position:" + str(event.position)
-		$"../PlayerPositionLabel".text = "Player Position:" + str($"../StaticBody2D/Player".position)
+		$"../PlayerPositionLabel".text = "Player Position:" + str($"../StaticBody2D/Player1".position)

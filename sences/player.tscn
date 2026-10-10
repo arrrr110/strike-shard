@@ -7,12 +7,19 @@
 [ext_resource type="Texture2D" uid="uid://bu050k1b81pbk" path="res://dodge_the_creeps_2d_assets/art/playerGrey_walk1.png" id="3_36xh1"]
 [ext_resource type="Texture2D" uid="uid://dg0suf118rea6" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_2.png" id="3_427ck"]
 [ext_resource type="Texture2D" uid="uid://4pi5cpu1fqve" path="res://dodge_the_creeps_2d_assets/art/playerGrey_walk2.png" id="4_isc1k"]
+[ext_resource type="Shader" path="res://shaders/aura.gdshader" id="5_aura"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_5s88j"]
 bounce = 0.8
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6strp"]
 radius = 16.03122
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aura"]
+resource_local_to_scene = true
+shader = ExtResource("5_aura")
+shader_parameter/aura_width = 0.0
+shader_parameter/aura_color = Color(0, 1, 0.486275, 1)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_joqdt"]
 animations = [{
@@ -60,6 +67,7 @@ script = ExtResource("1_5s88j")
 shape = SubResource("CircleShape2D_6strp")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=12856946]
+material = SubResource("ShaderMaterial_aura")
 position = Vector2(0, 4)
 scale = Vector2(0.3, 0.3)
 sprite_frames = SubResource("SpriteFrames_joqdt")

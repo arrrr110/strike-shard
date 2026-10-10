@@ -3,10 +3,12 @@
 [ext_resource type="Script" uid="uid://k5fey4xhuevh" path="res://scripts/tile_map_layer.gd" id="1_r4dii"]
 [ext_resource type="PackedScene" uid="uid://5shhm87diwlp" path="res://sences/mob.tscn" id="2_r4dii"]
 [ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
+[ext_resource type="Script" path="res://scripts/turn_controller.gd" id="4_turnctl"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_6strp"]
+friction = 0.0
 bounce = 0.8
 
 [sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_1bvp3"]
@@ -45,6 +47,12 @@ offset_bottom = 46.0
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=2101709390]
 physics_material_override = SubResource("PhysicsMaterial_6strp")
 
+[node name="Player3" parent="StaticBody2D" unique_id=1811015880 instance=ExtResource("3_mqxhw")]
+position = Vector2(267, 139)
+
+[node name="Player2" parent="StaticBody2D" unique_id=1960507198 instance=ExtResource("3_mqxhw")]
+position = Vector2(288, 189)
+
 [node name="AimLine" type="Line2D" parent="StaticBody2D" unique_id=1343671260]
 width = 3.0
 default_color = Color(0.99999887, 0.46086323, 0.46668625, 1)
@@ -52,7 +60,7 @@ default_color = Color(0.99999887, 0.46086323, 0.46668625, 1)
 [node name="Mob" parent="StaticBody2D" unique_id=1811971316 instance=ExtResource("2_r4dii")]
 position = Vector2(456, 166)
 
-[node name="Player" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
+[node name="Player1" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
 position = Vector2(402, 245)
 
 [node name="top" type="CollisionShape2D" parent="StaticBody2D" unique_id=989764099]
@@ -70,6 +78,9 @@ shape = SubResource("WorldBoundaryShape2D_iprjk")
 [node name="start" type="CollisionShape2D" parent="StaticBody2D" unique_id=46207860]
 position = Vector2(161, 228)
 shape = SubResource("WorldBoundaryShape2D_ig7tw")
+
+[node name="TurnController" type="Node2D" parent="."]
+script = ExtResource("4_turnctl")
 
 [node name="LifeCycle" type="Control" parent="." unique_id=1652116568]
 layout_mode = 3
