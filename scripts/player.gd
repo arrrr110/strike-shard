@@ -37,12 +37,20 @@ extends RigidBody2D
 @export var max_lock_time: float = 6.0
 
 @export_group("贴图倾斜（不倒翁）")
-## 每 1 rad/s 自转对应多少弧度倾斜：越大倾得越明显
-@export var tilt_per_spin: float = 0.06
-## 最大倾斜角度
-@export_range(0.0, 90.0, 1.0) var max_tilt_deg: float = 25.0
+## 每 1 rad/s 自转对应多少弧度倾斜。
+## 0.40 是实测扫出来的：一次像样的偏心碰撞自转峰值 5.29 rad/s，
+## 撞完到贴图跟上要几帧、期间自转已在按 1.0/s 衰减，各档实测倾斜峰值：
+## 0.30 -> 74.8°，0.40 -> 88.9°，0.50 -> 89.9°，0.70 -> 90.0°（顶到上限）
+@export var tilt_per_spin: float = 0.40
+## 最大倾斜角度。90 = 贴图可以躺平
+@export_range(0.0, 90.0, 1.0) var max_tilt_deg: float = 90.0
 ## 倾斜跟随 / 回正的速度：越大回正越快
 @export_range(1.0, 60.0, 1.0) var tilt_stiffness: float = 14.0
+## 贴图左右翻转跟随前进方向（角色贴图默认面朝右）。
+## mob.tscn 的贴图节点带 -90° 基准旋转，朝向语义与棋子不同，必要时在那边关掉
+@export var flip_to_facing: bool = true
+## 翻转死区：|水平速度| 小于它就不改朝向，免得接近静止时来回翻
+@export_range(0.0, 100.0, 1.0) var facing_deadzone: float = 10.0
 
 var selected := false          # 是否被 TurnController 选中（全盘至多一枚为 true）
 var charge := 0.0              # 当前蓄力值
@@ -51,6 +59,7 @@ var locked := false            # 球还在运动：禁止选中/蓄力
 var lock_armed := false        # 冲量生效、速度真的起来后才置 true
 var lock_time := 0.0
 var tilt := 0.0                # 贴图当前倾斜（弧度），0 = 正朝上
+var facing_right := true       # 贴图当前朝向：角色贴图默认面朝右
 var aim_target := Vector2.ZERO # 瞄准终点（世界坐标），鼠标出界时保留上一次的值
 var aim_dir := Vector2.ZERO    # 瞄准方向（单位向量），鼠标贴在棋子中心时保留上一次的值
 
@@ -300,7 +309,17 @@ func _read_body_radius() -> float:
 ## 不倒翁贴图：抵消刚体的自转，只按"自转趋势"左右倾斜，转停了自己回正朝上。
 ## 刚体照样在物理世界里转（碰撞/摩擦需要），只是视觉上不让它跟着翻。
 func _update_sprite_tilt(delta: float) -> void:
-	# 顺时针（angular_velocity > 0）向右倾，逆时针向左倾；角度上限由 max_tilt 夹住
+	# 贴图朝向：角色贴图默认面朝右，向左走时左右翻转，让它始终面朝前进方向（x 轴）。
+	# 用死区而不是速度正负，避免接近静止时来回翻。
+	if flip_to_facing:
+		if linear_velocity.x > facing_deadzone:
+			facing_right = true
+		elif linear_velocity.x < -facing_deadzone:
+			facing_right = false
+		sprite.flip_h = not facing_right
+
+	# 顺时针（angular_velocity > 0）向右倾，逆时针向左倾；角度上限由 max_tilt 夹住。
+	# 倾斜方向不用随翻转取反：自转和前进方向本来就同源，翻转后依然是"朝前进方向倾"。
 	var target := clampf(angular_velocity * tilt_per_spin, -max_tilt, max_tilt)
 	# 指数平滑：帧率无关，且自带"回正时略有惯性"的不倒翁感
 	tilt = lerpf(tilt, target, 1.0 - exp(-tilt_stiffness * delta))

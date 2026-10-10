@@ -15,6 +15,7 @@
 | 物理刻度 | 60 Hz | 每物理帧处理一次阶段推进与碰撞 |
 | 重力 | 无 | 棋子 `gravity_scale = 0`，俯视棋盘 |
 | 引擎线性阻尼 | **关闭** | 棋子与 Mob 都设了 `linear_damp_mode = 1`（REPLACE）且 `linear_damp = 0`，所以引擎阻尼不参与。减速**只**来自 `_integrate_forces` 里脚本施加的恒定减速 `decel`（默认 300 px/s²） |
+| 引擎角阻尼 | **1.0 /s（默认值，没被关掉）** | 棋子 `angular_damp = 0` 但 `angular_damp_mode = 0`（COMBINE），所以取 ProjectSettings 的默认 `1.0`。实测自转按 `e^(-t)` 衰减：设 5.00 rad/s 后 1 秒剩 1.82、2 秒剩 0.67。**这是不倒翁倾斜只是短暂表现的原因**——自转本身约 1 秒就衰掉大半，倾斜跟着回正。想让棋子转得久一点就调 `angular_damp_mode` |
 | 棋盘四壁摩擦 | **0** | `main.tscn` 的 `PhysicsMaterial_6strp` 设了 `friction = 0.0`。理由见下面「已知运行环境坑」 |
 | 棋盘四壁弹性 | `bounce = 0.8` | 与棋子的 `0.8` 相加后夹到 1.0 → **完全弹性**。见下面「已知运行环境坑」 |
 | 窗口 / 视口 | 720 × 480，`canvas_items` 拉伸 | 棋盘矩形世界坐标：左 161 / 右 621 / 上 61 / 下 401 |
@@ -60,6 +61,39 @@
   棋子只负责"问一句、拿到结果、决定要不要冻结"，判定逻辑属于规则层。【冻结机制未实现】
 - **碰撞回调拿到的是已反弹后的状态**。引擎先算完弹性响应再通知；要改变碰撞结果，
   只能在回调里覆写速度。详见 [物理冻结与暂停策略](../40-physics/freeze-and-pause.md)。【未实现】
+
+### 视觉表现与物理的边界（做特效前必读）
+
+物理状态住在 `PhysicsServer2D`，每个物理帧由服务器**单向推**到节点 transform；
+节点上的 transform 改动**不回写**物理。因此"看得见的抖动"和"物理真的动了"是两件事。
+实测（`--headless --fixed-fps 60`，同一发球的逐帧轨迹对比）：
+
+| 抖动对象 | 轨迹最大偏差 |
+| --- | --- |
+| `Camera2D`（offset ±12px） | **0.000000000** |
+| 子节点 `AnimatedSprite2D`（位移 ±6px + 旋转 ±0.4rad + 缩放 ±20%） | **0.000000000** |
+| 对照组：`RigidBody2D` 自身位置 | 110.44 px（证明确实能测出扰动） |
+| 对照组：`CollisionShape2D` 自己的 `scale` | 114.87 px |
+| （反直觉）`RigidBody2D` 自己的 `scale` | **0.00 px** |
+
+两条结论：
+
+- **相机抖动、子节点抖动都完全不影响物理**，可以放心用来做打击感。
+  项目里的 `_update_sprite_tilt()` 每帧写 `sprite.rotation` / `sprite.position` 抵消刚体自转，
+  用的就是这个性质。
+- **`RigidBody2D.scale` 不改物理**（设成 0.5 / 1.5 / 2.0 轨迹都不变），
+  真正改碰撞体积的是 `CollisionShape2D` 自己的 transform 或 shape 的半径。
+  也就是说**刚体的视觉缩放和物理大小会悄悄不一致**——改碰撞体积时别改错地方。
+
+两个要留意的交互：
+
+- **相机抖动会带着瞄准一起抖**。瞄准走 `get_global_mouse_position()`，它**包含 canvas transform**，
+  所以相机一抖，鼠标对应的世界坐标跟着抖，蓄力条方向会抖。
+  碰撞瞬间抖动是安全的（那时在 `MOTION`、不接受输入）；但若以后在 `PLAYER_TURN` 也加相机效果，
+  瞄准会受影响。
+- **打击抖动要与 `_update_sprite_tilt()` 叠加，不能各写各的**。那个函数每帧都在写
+  `sprite.rotation` 和 `sprite.position`；抖动若也直接赋值就会互相覆盖。
+  正确做法是作为偏移量叠加：`sprite.position = base.rotated(-rotation) + shake_offset`。
 
 ## 曾经的坑（已解决，留作前车之鉴）
 
