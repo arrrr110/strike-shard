@@ -1,0 +1,61 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "f33c0be89769c8b446fb9797f0a363cfd76dc87f",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 339,
+      "total_deletions": 75,
+      "accepted_lines": 313,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "scripts/turn_controller.gd.uid": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "scripts/player.gd": {
+          "additions": 150,
+          "deletions": 55,
+          "accepted_lines": 142
+        },
+        "shaders/aura.gdshader": {
+          "additions": 69,
+          "deletions": 5,
+          "accepted_lines": 64
+        },
+        "sences/main.tscn": {
+          "additions": 5,
+          "deletions": 1,
+          "accepted_lines": 5
+        },
+        "scripts/tile_map_layer.gd": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "sences/player.tscn": {
+          "additions": 10,
+          "deletions": 2,
+          "accepted_lines": 8
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 102,
+          "deletions": 11,
+          "accepted_lines": 91
+        },
+        "shaders/aura.gdshader.uid": {
+          "additions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}
