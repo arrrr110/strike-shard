@@ -1,0 +1,42 @@
+design/00-overview/constraints.md
+  a85d95ece84e969a 18,65-97
+design/10-turn/DESIGN.md
+  a85d95ece84e969a 218-232
+scripts/player.gd
+  a85d95ece84e969a 40-46,49-53,62,312-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "fdf31dfe39d15ee0838be6a3c6c120750f3cfebb",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 76,
+      "total_deletions": 8,
+      "accepted_lines": 73,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/00-overview/constraints.md": {
+          "additions": 34,
+          "accepted_lines": 34
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 15,
+          "accepted_lines": 15
+        },
+        "scripts/player.gd": {
+          "additions": 27,
+          "deletions": 8,
+          "accepted_lines": 24
+        }
+      }
+    }
+  }
+}
