@@ -1,0 +1,106 @@
+design/00-overview/glossary.md
+  a85d95ece84e969a 13,29-32,35-36,58,71,74-77,80-81
+scripts/hp_overlay.gd
+  a85d95ece84e969a 1-91
+design/20-character/PRD.md
+  a85d95ece84e969a 3,5-13,15,17,19-25,27-31,33,35-41,43-45,47-164,168-172,174,177-181,185-197
+design/10-turn/PRD.md
+  a85d95ece84e969a 18,27,137,139-141,151-154,159,169-173,178-179,181-186,190-191,195-196,265,286,291,325,329-330,343,360-363,373,384,392-400,404,408-413,432,434-435
+sences/player.tscn
+  a85d95ece84e969a 22,64-65
+scripts/player.gd
+  a85d95ece84e969a 6-31,102-105,108-150,175-180,183,246
+sences/mob.tscn
+  a85d95ece84e969a 31-32,34
+design/50-presentation/timeline-and-markers.md
+  a85d95ece84e969a 37
+scripts/game_flow.gd
+  a85d95ece84e969a 33-36,38-41,47,69-76,87-91,105,154,178-213,248-315,318,321
+sences/main.tscn
+  a85d95ece84e969a 8,108-110
+design/00-overview/constraints.md
+  a85d95ece84e969a 34-35
+design/10-turn/DESIGN.md
+  a85d95ece84e969a 31-32,38-39,42,46,48-49,130-134,178-203,234-266,346,363-367,443,520,524,615-616
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "74fc37e4e8f08325ad1e9d2a8dbe823c9bf0a876",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 739,
+      "total_deletions": 187,
+      "accepted_lines": 654,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "sences/player.tscn": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "scripts/hp_overlay.gd": {
+          "additions": 98,
+          "deletions": 7,
+          "accepted_lines": 91
+        },
+        "design/20-character/PRD.md": {
+          "additions": 213,
+          "deletions": 70,
+          "accepted_lines": 179
+        },
+        "design/00-overview/constraints.md": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 2
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 68,
+          "deletions": 34,
+          "accepted_lines": 61
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 91,
+          "deletions": 22,
+          "accepted_lines": 83
+        },
+        "sences/main.tscn": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "scripts/game_flow.gd": {
+          "additions": 140,
+          "deletions": 14,
+          "accepted_lines": 131
+        },
+        "sences/mob.tscn": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "scripts/player.gd": {
+          "additions": 94,
+          "deletions": 18,
+          "accepted_lines": 81
+        },
+        "design/00-overview/glossary.md": {
+          "additions": 20,
+          "deletions": 15,
+          "accepted_lines": 15
+        },
+        "design/50-presentation/timeline-and-markers.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}
