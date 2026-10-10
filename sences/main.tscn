@@ -3,7 +3,8 @@
 [ext_resource type="Script" uid="uid://k5fey4xhuevh" path="res://scripts/tile_map_layer.gd" id="1_r4dii"]
 [ext_resource type="PackedScene" uid="uid://5shhm87diwlp" path="res://sences/mob.tscn" id="2_r4dii"]
 [ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
-[ext_resource type="Script" path="res://scripts/turn_controller.gd" id="4_turnctl"]
+[ext_resource type="Script" uid="uid://b03m4oh46th1s" path="res://scripts/turn_controller.gd" id="4_turnctl"]
+[ext_resource type="Script" uid="uid://de16r7d3ar80" path="res://scripts/game_flow.gd" id="5_gameflow"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
@@ -48,10 +49,10 @@ offset_bottom = 46.0
 physics_material_override = SubResource("PhysicsMaterial_6strp")
 
 [node name="Player3" parent="StaticBody2D" unique_id=1811015880 instance=ExtResource("3_mqxhw")]
-position = Vector2(267, 139)
+position = Vector2(306, 312)
 
 [node name="Player2" parent="StaticBody2D" unique_id=1960507198 instance=ExtResource("3_mqxhw")]
-position = Vector2(288, 189)
+position = Vector2(400, 312)
 
 [node name="AimLine" type="Line2D" parent="StaticBody2D" unique_id=1343671260]
 width = 3.0
@@ -61,7 +62,7 @@ default_color = Color(0.99999887, 0.46086323, 0.46668625, 1)
 position = Vector2(456, 166)
 
 [node name="Player1" parent="StaticBody2D" unique_id=1645509998 instance=ExtResource("3_mqxhw")]
-position = Vector2(402, 245)
+position = Vector2(494, 311)
 
 [node name="top" type="CollisionShape2D" parent="StaticBody2D" unique_id=989764099]
 position = Vector2(385, 61)
@@ -79,11 +80,21 @@ shape = SubResource("WorldBoundaryShape2D_iprjk")
 position = Vector2(161, 228)
 shape = SubResource("WorldBoundaryShape2D_ig7tw")
 
-[node name="TurnController" type="Node2D" parent="."]
+[node name="TurnController" type="Node2D" parent="." unique_id=1231955802]
 script = ExtResource("4_turnctl")
 
-[node name="LifeCycle" type="Control" parent="." unique_id=1652116568]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="LifeCycle" type="Label" parent="." unique_id=842215590]
+offset_left = 537.0
+offset_top = 15.0
+offset_right = 708.0
+offset_bottom = 52.0
+
+[node name="EndTurnButton" type="Button" parent="." unique_id=2093389375]
+offset_left = 625.0
+offset_top = 222.0
+offset_right = 697.0
+offset_bottom = 253.0
+text = "结束回合"
+
+[node name="GameFlow" type="Node" parent="." unique_id=1744399887]
+script = ExtResource("5_gameflow")

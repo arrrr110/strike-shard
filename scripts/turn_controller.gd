@@ -15,8 +15,16 @@ extends Node2D
 
 const PIECES_GROUP := &"pieces"
 
+## 真的发射出去了一枚棋子（松手且蓄力值大于 0）。阶段机靠它关上"发射边锁"。
+signal piece_launched(piece: Node2D)
+
 ## 当前被选中的棋子（全盘唯一）。null 表示没有选中任何棋子。
 var selected_piece: Node2D = null
+
+## 阶段机（见 scripts/game_flow.gd）。**延迟到第一次用到时才去找** ——
+## TurnController 在 main.tscn 里排在 GameFlow 之前，_ready 那会儿 GameFlow 还没进组。
+## 找不到就当作永远允许操作，这样不建 GameFlow 的 headless 探针照样能把棋子逻辑单独跑起来。
+var _game_flow: Node = null
 
 
 func _ready() -> void:
@@ -42,6 +50,8 @@ func _input(event: InputEvent) -> void:
 ## 但点在别的棋子上**照样开始蓄力** —— 瞄准的时候鼠标经常会压到别的棋子，
 ## 那时候不让蓄力就没法瞄了。
 func handle_left_press(mouse: Vector2) -> void:
+	if not _can_operate():
+		return
 	var hit := _pick(mouse)
 	if selected_piece == null:
 		if hit != null:
@@ -52,9 +62,27 @@ func handle_left_press(mouse: Vector2) -> void:
 
 ## 左键松开。真的发射出去了才交还选择权；落空的点击不取消选中
 ## （否则第一次"点选"的松开就会立刻把刚选中的棋子取消掉）。
+##
+## 门槛只加在"按下"上，不加在这里：已经合法开始的蓄力必须能正常结束，
+## 否则棋子会卡在蓄力态。
 func handle_left_release() -> void:
-	if selected_piece != null and selected_piece.release_charge():
+	if selected_piece == null:
+		return
+	var launching: Node2D = selected_piece
+	if launching.release_charge():
 		clear_selection()
+		piece_launched.emit(launching)
+
+
+## 操作许可由阶段机发放（spec："棋子 MUST NOT 自行判断当前是否可被操作"）。
+## 问不到阶段机时放行 —— headless 探针不建 GameFlow，棋子逻辑要能独立验证。
+## 这不是鼠标热路径（每次按下左键才问一次），所以现找即可，不必缓存。
+func _can_operate() -> bool:
+	if _game_flow == null or not is_instance_valid(_game_flow):
+		_game_flow = get_tree().get_first_node_in_group(&"game_flow")
+		if _game_flow == null:
+			return true
+	return _game_flow.can_operate_pieces()
 
 
 ## 选中一枚棋子。调用方只会在"当前没有选中者"时调它；
