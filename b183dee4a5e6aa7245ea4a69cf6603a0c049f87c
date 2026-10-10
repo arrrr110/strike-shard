@@ -1,0 +1,119 @@
+design/10-turn/DESIGN.md
+  a85d95ece84e969a 3,6,8,10-296,300,303,305-307,309,313,321,325-326,330-331,335-336,340-343,347,350,356,359,365-366,368-369,373,383-384,386,389-392,396-398,400,402,404-410,412,414,436-437,440-441,450-452,454,456,460-461,483,485,488,492-494,496,519,530,532-538,540,544-546,553-563
+design/20-character/PRD.md
+  a85d95ece84e969a 4,6-8,16-17,24,26-28,45-50
+design/30-card/PRD.md
+  a85d95ece84e969a 4-6,12-13,16,42-45
+design/10-turn/PRD.md
+  a85d95ece84e969a 4,10,12,14-34,38,44,47-50,55-61,65-68,70-77,79-81,83,88-93,99-105,107-108,110,112-113,115-119,127-129,134-135,137,139-140,154-155,164,166,168,183,193-207,209-211,220-226,228,230,233,238-239,241,248-249,257-262,265,267-269,278-279,283-284,287-294,297-304,308,319-321,323-335,339-341,343,354-356,358-359,361-362,364-372,378-383,392,395-401
+scripts/turn_controller.gd
+  a85d95ece84e969a 18-20,24-27,53-54,65-67,69-72,74-85
+design/40-physics/freeze-and-pause.md
+  a85d95ece84e969a 3,124-126,135-136,138,142-146
+sences/main.tscn
+  a85d95ece84e969a 98,100
+design/00-overview/glossary.md
+  a85d95ece84e969a 3,5-7,13-21,27-41,46,55,57,59-60,68,70-73,75-76
+scripts/game_flow.gd.uid
+  a85d95ece84e969a 1
+design/README.md
+  a85d95ece84e969a 4,8-16,20-22,31-44,48-49,51-53
+design/50-presentation/timeline-and-markers.md
+  a85d95ece84e969a 3-7,94-100
+sences/mob.tscn
+  a85d95ece84e969a 5-8,11,28,30-32
+design/00-overview/constraints.md
+  a85d95ece84e969a 3,10,17-19,21,34,36-37,41-69
+scripts/game_flow.gd
+  a85d95ece84e969a 1-249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "b183dee4a5e6aa7245ea4a69cf6603a0c049f87c",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 1056,
+      "total_deletions": 586,
+      "accepted_lines": 1044,
+      "overriden_lines": 2,
+      "per_file_stats": {
+        "scripts/game_flow.gd.uid": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "design/20-character/PRD.md": {
+          "additions": 16,
+          "deletions": 6,
+          "accepted_lines": 16
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 385,
+          "deletions": 336,
+          "accepted_lines": 383
+        },
+        "design/30-card/PRD.md": {
+          "additions": 10,
+          "deletions": 4,
+          "accepted_lines": 10
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 213,
+          "deletions": 165,
+          "accepted_lines": 210
+        },
+        "sences/main.tscn": {
+          "additions": 4,
+          "accepted_lines": 2,
+          "overriden_lines": 2
+        },
+        "design/50-presentation/timeline-and-markers.md": {
+          "additions": 12,
+          "deletions": 4,
+          "accepted_lines": 12
+        },
+        "design/40-physics/freeze-and-pause.md": {
+          "additions": 12,
+          "deletions": 6,
+          "accepted_lines": 12
+        },
+        "design/README.md": {
+          "additions": 32,
+          "deletions": 24,
+          "accepted_lines": 32
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 33,
+          "deletions": 5,
+          "accepted_lines": 29
+        },
+        "design/00-overview/constraints.md": {
+          "additions": 38,
+          "deletions": 10,
+          "accepted_lines": 38
+        },
+        "scripts/game_flow.gd": {
+          "additions": 249,
+          "accepted_lines": 249
+        },
+        "sences/mob.tscn": {
+          "additions": 10,
+          "deletions": 2,
+          "accepted_lines": 9
+        },
+        "design/00-overview/glossary.md": {
+          "additions": 41,
+          "deletions": 24,
+          "accepted_lines": 41
+        }
+      }
+    }
+  }
+}
