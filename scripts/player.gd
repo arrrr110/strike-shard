@@ -21,8 +21,8 @@ extends RigidBody2D
 @export_group("蓄力")
 ## 蓄力上限，避免无限蓄力。mass = 1 时数值≈松开后球的速度（px/s）
 @export_range(1.0, 5000.0, 10.0) var max_charge: float = 600.0
-## 每秒蓄力值：600 / 600 = 1 秒蓄满
-@export_range(1.0, 5000.0, 10.0) var charge_rate: float = 600.0
+## 每秒蓄力值：600 / 300 = 2 秒蓄满。鼠标移出棋盘时暂停积蓄，回到盘内接着涨。
+@export_range(1.0, 5000.0, 10.0) var charge_rate: float = 300.0
 ## 蓄力条颜色（正红）
 @export var charge_color: Color = Color(1, 0, 0, 1)
 ## 蓄力条比指示线加粗的倍数
@@ -46,7 +46,7 @@ extends RigidBody2D
 
 var selected := false          # 是否被 TurnController 选中（全盘至多一枚为 true）
 var charge := 0.0              # 当前蓄力值
-var charging := false          # 是否正在蓄力（左键按住且鼠标在盘内）
+var charging := false          # 是否正在蓄力（左键按住；鼠标出盘则暂停积蓄）
 var locked := false            # 球还在运动：禁止选中/蓄力
 var lock_armed := false        # 冲量生效、速度真的起来后才置 true
 var lock_time := 0.0
@@ -71,8 +71,13 @@ func _ready() -> void:
 	add_to_group(&"pieces") # TurnController 靠这个组找到全盘可选的棋子
 
 func _process(delta: float) -> void:
+	var mouse := get_global_mouse_position()
+	var in_board := table_rect.has_point(mouse)
+
 	if charging:
-		charge = minf(charge + charge_rate * delta, max_charge)
+		# 只在鼠标位于盘内时积蓄；移出盘外就停住（不涨也不退），回到盘内接着涨。
+		if in_board:
+			charge = minf(charge + charge_rate * delta, max_charge)
 
 	if locked:
 		lock_time += delta
@@ -81,7 +86,7 @@ func _process(delta: float) -> void:
 		elif lock_armed or (max_lock_time > 0.0 and lock_time >= max_lock_time):
 			locked = false
 
-	_update_line()
+	_update_line(mouse, in_board)
 	_update_sprite_tilt(delta)
 
 # ---------- 供 TurnController 调用的能力 ----------
@@ -150,13 +155,12 @@ func cancel_charge() -> void:
 
 ## 画线：把"画什么"收在一个地方按状态分支，
 ## 指示线和蓄力条就不会各写一份 points 互相覆盖。
-func _update_line() -> void:
+func _update_line(mouse: Vector2, in_board: bool) -> void:
 	# 不可操作的球没有瞄准线；没被选中的棋子也不画（全盘只有一枚在写这条共享线）；
 	# 球还在动时同样不画
 	if not controllable or not selected or line_2d == null or locked:
 		return
-	var mouse := get_global_mouse_position()
-	if table_rect.has_point(mouse):
+	if in_board:
 		aim_target = mouse # 只在盘内更新方向，出界保持上一次
 	# 鼠标正好压在棋子中心时方向无定义，保留上一次的方向，别让蓄力条缩成一个点
 	var to_mouse := aim_target - global_position
