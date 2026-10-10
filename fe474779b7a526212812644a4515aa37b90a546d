@@ -1,0 +1,30 @@
+scripts/player.gd
+  a85d95ece84e969a 24-25,49,74-76,78-80,89,158,163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "fe474779b7a526212812644a4515aa37b90a546d",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 19,
+      "total_deletions": 15,
+      "accepted_lines": 12,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "scripts/player.gd": {
+          "additions": 19,
+          "deletions": 15,
+          "accepted_lines": 12
+        }
+      }
+    }
+  }
+}
