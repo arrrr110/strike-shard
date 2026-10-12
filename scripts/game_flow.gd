@@ -31,6 +31,10 @@ const PHASE_NAMES := {
 
 signal phase_changed(from_phase: int, to_phase: int)
 signal owner_hp_changed(owner_id: int, hp: int)
+## ZOC 检测完成（检测是纯查询，不发伤害）。表现层将来可以挂在这里。
+signal zoc_detected(target: RigidBody2D, coverers: Array)
+## ZOC 攻击已施加（单向）。携带目标与实际扣掉的血量。
+signal zoc_attacked(target: RigidBody2D, damage: int)
 
 ## 各归属方的当前血量，索引 = owner_id
 var owner_hp: Array[int] = []
@@ -44,7 +48,8 @@ var owner_hp: Array[int] = []
 ## TURN_START / TURN_END / ENEMY_TURN 各自的停留时长。只为看得见，没有规则含义
 @export_range(0.0, 5.0, 0.1) var dwell_sec: float = 1.0
 
-@export_group("静止判定")## 线速度阈值（px/s）。与棋子自己的 rest_speed 对齐
+@export_group("静止判定")
+## 线速度阈值（px/s）。与棋子自己的 rest_speed 对齐
 @export_range(0.0, 200.0, 1.0) var rest_lin_speed: float = 10.0
 ## 角速度阈值（rad/s）。独立于线速度 —— 原地打转不算静止（spec 要求）
 @export_range(0.0, 20.0, 0.1) var rest_ang_speed: float = 0.5
@@ -78,6 +83,7 @@ var _settled_pairs: Dictionary = {}
 var _turn_controller: Node = null
 var _phase_label: Label = null
 var _end_turn_button: Button = null
+var _reset_button: Button = null
 
 
 func _ready() -> void:
@@ -95,6 +101,9 @@ func _ready() -> void:
 
 	if _end_turn_button != null:
 		_end_turn_button.pressed.connect(request_end_turn)
+	_reset_button = get_node_or_null("../ResetButton") as Button
+	if _reset_button != null:
+		_reset_button.pressed.connect(reset_match)
 	if _turn_controller != null and _turn_controller.has_signal(&"piece_launched"):
 		_turn_controller.piece_launched.connect(_on_piece_launched)
 
@@ -132,8 +141,18 @@ func _poll(delta: float) -> int:
 			if _end_turn_requested and _board_at_rest(delta):
 				return Phase.TURN_END
 		Phase.MOTION:
-			if _board_at_rest(delta):
+			# ZOC 分两拍走完：等静止 → 播 zoc（检查）→ 播 attack/be_hit 并结算。
+			# **两拍期间 MOTION 都不结束**，玩家不能趁动画还在播的时候操作（决策 4）。
+			if _zoc_stage == ZocStage.DONE:
 				return Phase.PLAYER_TURN
+			if _zoc_stage == ZocStage.WINDUP:
+				_zoc_timer -= delta
+				if _zoc_timer <= 0.0:
+					_strike_zoc()
+				return NO_TRANSITION
+			if _board_at_rest(delta):
+				_start_zoc_check()
+			return NO_TRANSITION
 		Phase.TURN_END:
 			if _dwell >= dwell_sec:
 				return Phase.ENEMY_TURN
@@ -160,6 +179,8 @@ func _enter(p: Phase) -> void:
 
 
 func _leave(p: Phase) -> void:
+	if p == Phase.MOTION:
+		_zoc_stage = ZocStage.NONE # ZOC 表现在 MOTION 内部走完，进来时复位
 	if p == Phase.PLAYER_TURN and _turn_controller != null and is_instance_valid(_turn_controller):
 		# 离开我的回合就清掉选中/蓄力。否则会出现"棋子停在蓄力态、但已经进了敌方回合"
 		# 这种悬挂状态 —— 玩家选中棋子后直接点结束回合时，没有任何东西在动，
@@ -173,6 +194,21 @@ func _leave(p: Phase) -> void:
 ## TurnController 每次按下左键前问一句（spec："操作许可由阶段机发放"）。
 func can_operate_pieces() -> bool:
 	return phase == Phase.PLAYER_TURN and launch_available
+
+
+## 此刻轮到哪一方行动。选择层靠它决定"哪些棋子能点"——归属判定收在这里，
+## 而不是写死在棋子身上（写死会让敌方永远选不中，见 player.gd 的 is_selectable）。
+##
+## 本期敌方回合还是占位，所以只有 PLAYER_TURN 会真的去选棋子；
+## bot 落地后 `ENEMY_TURN` 期间返回 1，敌方棋子就自动变成可选的了。
+func active_owner_id() -> int:
+	return 0 if phase == Phase.PLAYER_TURN else 1
+
+
+## 本回合的行动角色（发射出去的那一枚）。NULL 表示本回合还没发射过。
+## ZOC 结算从它的控制域出发；调试显示也用它来高亮。
+func actor_piece() -> Node2D:
+	return _actor if _actor != null and is_instance_valid(_actor) else null
 
 
 ## 把伤害结算到某个归属方的血量池上。返回实际扣掉多少（血量下限 0）。
@@ -219,6 +255,43 @@ func request_end_turn() -> void:
 		_end_turn_requested = true
 
 
+## 重开一局（ResetButton）：棋子回到**开局快照**、归属方血量回满、回合从 `TURN_START` 重来。
+##
+## 棋子那边的快照是它在 `_ready` 时自己存的，所以"初始位置/血量/攻击力"就是你在编辑器里摆的值。
+func reset_match() -> void:
+	# 1. 棋子：位置 / 自转 / 速度 / 血量 / 攻击力 / 朝向 / 动画 / 蓄力 / 选中 / 描边
+	for node in _pieces:
+		if is_instance_valid(node) and node.has_method(&"reset_to_home"):
+			node.reset_to_home()
+
+	# 2. 归属方血量池回满
+	for i in owner_hp.size():
+		owner_hp[i] = owner_max_hp
+		owner_hp_changed.emit(i, owner_hp[i])
+
+	# 3. 本回合瞬时量
+	_actor = null
+	_end_turn_requested = false
+	_launched_this_phase = false
+	_settled_pairs.clear()
+
+	# 4. ZOC 表现有可能停在半路（比如重置时正播着 zoc），一并清掉
+	_zoc_stage = ZocStage.NONE
+	_zoc_timer = 0.0
+	_zoc_damage = 0
+	_zoc_target = null
+	_zoc_coverers = []
+
+	if _turn_controller != null and is_instance_valid(_turn_controller):
+		_turn_controller.clear_selection()
+
+	# 5. 回到开局阶段（_enter 会打开发射边锁、复位 _actor、刷新按钮与阶段名）
+	var from := phase
+	phase = Phase.TURN_START
+	_enter(phase)
+	phase_changed.emit(from, Phase.TURN_START)
+
+
 # ---------- 卡牌装载（占位） ----------
 #
 # 回合机制的三个环节之一是"卡牌装载"：卡牌可以装载到角色上，也可以由玩家直接使用。
@@ -257,24 +330,175 @@ func load_card(_card: Variant, _piece: Node) -> bool:
 
 ## 一次棋子碰撞的结算。**双向**：双方各打出自己的 atk（互相交换，
 ## 不是"撞的一方打人、被撞的一方挨打"）。
+## 一次棋子碰撞的结算。**伤害是双向的**（双方各打出自己的 atk），
+## 但**表现是单向的**：`a` 是行动角色（撞过去的那一枚），它播 attack，`b` 播 be_hit。
 func _resolve_collision(a: RigidBody2D, b: RigidBody2D) -> void:
+	a.play_attack(b)
+	b.play_be_hit()
 	_exchange(a, b)
 	_exchange(b, a)
 
 
-## attacker 打 defender 一次。伤害 = 攻击方 atk × 克制倍率。
+## 把 amount 点伤害打到 defender 身上。**伤害去向的唯一出口**（碰撞与 ZOC 共用）。
+## 按三档表：先扣角色血量（下限 0），扣不完的转给归属方；已是薄弱点（hp == 0）则全额转移。
+## 返回实际施加的伤害量（含溢出的部分）。
+func _apply_damage_to(defender: RigidBody2D, amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var absorbed: int = mini(amount, defender.hp)
+	defender.hp -= absorbed
+	var overflow := amount - absorbed
+	if overflow > 0:
+		damage_owner(defender.owner_id, overflow)
+	return amount
+
+
+## attacker 打 defender 一次。伤害 = 攻击方 atk × 倍率（倍率目前恒为 1，克制已屏蔽）。
 ##
-## 去向按 20-character PRD 的伤害三档表：先扣角色血量（下限 0），扣不完的部分转给归属方；
-## 已经是薄弱点（hp == 0）则 absorbed 为 0、全额转移。三档由 `mini()` 这一行自然涵盖。
+## ⚠️ **这里只管数值，不碰表现**。动画由调用方按"谁是行动角色"决定（见 `_resolve_collision`）。
+## 曾经把 `play_attack/play_be_hit` 写在这里，结果：它在同一帧被调用两次，
+## 后一次把前一次覆盖掉 —— 攻击方播了 be_hit、被撞的播了 attack，完全反了。
 func _exchange(attacker: RigidBody2D, defender: RigidBody2D) -> void:
 	var dmg := int(round(float(attacker.atk) * attacker.damage_multiplier_against(defender)))
 	if dmg <= 0:
 		return
-	var absorbed: int = mini(dmg, defender.hp)
-	defender.hp -= absorbed
-	var overflow := dmg - absorbed
-	if overflow > 0:
-		damage_owner(defender.owner_id, overflow)
+	_apply_damage_to(defender, dmg)
+
+
+# ---------- ZOC 结算（环节 3） ----------
+#
+# 规则见 [10-turn PRD 功能 5]。要点：
+#   · **单向伤害**：只有目标掉血，本方一概不掉
+#   · 从**本回合发射的那枚棋子**的控制域出发挑目标
+#   · 优先挑被本方**最多**控制域交叠的敌方（≥2 个即**围攻**）；没有围攻则挑最近的那个
+#   · **每回合只结算一个目标**
+#   · 伤害 = **所有罩住目标的本方棋子的 atk 之和**（2026-10-12 决定）
+#   · 角色与召唤物**一视同仁**（召唤物也有控制域）
+#
+# 触发点：`MOTION` 结束时（全场静止后的一次性收口）。没有发射就没有行动角色，也就没有 ZOC。
+
+
+## 控制域是否与目标**交叠**。
+##
+## ZOC 的定义（2026-10-12 用户明确）：以棋子为圆心、半径 `zoc_radius` 的圆，
+## **没有碰撞体积**（不是物理体、不进碰撞检测），**只在 ZOC 步骤里查一次**。
+## 判定的是"ZOC 圆与目标的 **CollisionShape2D** 交叠"，所以要把目标自己的
+## 形状半径算进来 —— 不是"目标中心落在圆内"。
+func _zoc_hits(holder: Node2D, target: RigidBody2D) -> bool:
+	return holder.global_position.distance_to(target.global_position) \
+			<= holder.zoc_radius + target.body_radius
+
+
+## 罩住 target 的**我方**棋子。纯查询、不缓存（红线 #4），召唤物也算。
+func coverers_of(target: RigidBody2D) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if _actor == null or not is_instance_valid(_actor):
+		return out
+	var mine: int = _actor.owner_id
+	for node in _pieces:
+		var p := node as Node2D
+		if p == null or not is_instance_valid(p) or p.owner_id != mine:
+			continue
+		if _zoc_hits(p, target):
+			out.append(p)
+	return out
+
+
+## ZOC 表现分两拍（2026-10-12 用户决定"先 zoc 再 attack"）：
+##   NONE   —— 还没开始，MOTION 在等全场静止
+##   WINDUP —— 参与方都在播 zoc（检查/列阵），MOTION **不结束**
+##   DONE   —— 已结算，MOTION 可以走了
+## 中途卡住 MOTION 是必须的：不然动画还在播，玩家已经能操作了（决策 4 的"表现排空"）。
+enum ZocStage { NONE, WINDUP, DONE }
+var _zoc_stage := ZocStage.NONE
+var _zoc_timer := 0.0
+var _zoc_damage := 0
+## 上一次 ZOC 检测的结果。**检测与攻击分成两拍**（见上面的 ZocStage）：
+##   · `detect_zoc()` 是纯查询，只把结果写在这里，不改任何状态
+##   · `_start_zoc_check()` 是第一拍：检测 + 让参与方播 zoc
+##   · `_strike_zoc()` 是第二拍：读这份结果施加一次单向伤害
+## 分开的好处：检测结果**可观察**（调试显示、表现层、以后的 bot 都用得上），
+## 而且"检查"和"生效"不再是一件事。
+var _zoc_target: RigidBody2D = null
+var _zoc_coverers: Array[Node2D] = []
+
+
+## ZOC 检测。**纯查询、不改状态**，返回"这次有没有检测到目标"。
+##
+## 步骤（2026-10-12 用户明确）：
+##   1. 以**刚发射过的那枚棋子**（行动角色）的控制域为主
+##   2. 逐个看我方**所有**棋子的控制域，统计每个敌方被几枚交叠
+##   3. 优先挑交叠最多的（≥2 枚即**围攻**）；数目相同时挑离行动角色最近的
+##   4. 没有交叠就没检测到
+func detect_zoc() -> bool:
+	_zoc_target = null
+	_zoc_coverers = []
+	if _actor == null or not is_instance_valid(_actor):
+		return false # 本回合没发射过：没有行动角色，就不检测
+
+	var mine: int = _actor.owner_id
+	var best: RigidBody2D = null
+	var best_cover := 0
+	var best_dist := INF
+	for node in _pieces:
+		var e := node as RigidBody2D
+		if e == null or not is_instance_valid(e) or e.owner_id == mine:
+			continue
+		if not _zoc_hits(_actor, e):
+			continue # 不在**行动角色**的控制域里 —— 不参选（"以它为主"）
+		var n := coverers_of(e).size()
+		var d: float = _actor.global_position.distance_to(e.global_position)
+		# 用"严格更优"比较，结果不依赖遍历顺序（红线 #2）
+		if n > best_cover or (n == best_cover and d < best_dist):
+			best = e
+			best_cover = n
+			best_dist = d
+
+	if best == null:
+		return false
+	_zoc_target = best
+	_zoc_coverers = coverers_of(best)
+	zoc_detected.emit(_zoc_target, _zoc_coverers)
+	return true
+
+
+## 本次检测到的目标（null = 没检测到）
+func zoc_target() -> RigidBody2D:
+	return _zoc_target if _zoc_target != null and is_instance_valid(_zoc_target) else null
+
+
+## 罩住本次目标的这些我方棋子
+func zoc_coverers() -> Array[Node2D]:
+	return _zoc_coverers
+
+
+## ZOC 的**第一拍**：检测 + 让参与方摆出 zoc 姿态（检查/列阵）。**不结算伤害**。
+func _start_zoc_check() -> void:
+	_zoc_damage = 0
+	if not detect_zoc():
+		_zoc_stage = ZocStage.DONE # 没检测到目标，直接放行
+		return
+	var who: Node2D = _actor
+	_zoc_timer = who.zoc_windup_sec() if who != null else 0.35
+	for p in _zoc_coverers:
+		_zoc_damage += p.atk
+		p.play_zoc() # 罩住目标的我方棋子：摆出检查姿态
+	_zoc_target.play_zoc() # 被检查的目标：同样进入 ZOC 表现（不想要的话去掉这一行）
+	_zoc_stage = ZocStage.WINDUP
+
+
+## ZOC 的**第二拍**：攻击方摆攻击姿态、目标挨打，**单向**结算伤害。
+func _strike_zoc() -> void:
+	_zoc_stage = ZocStage.DONE
+	if _zoc_target == null or not is_instance_valid(_zoc_target) or _zoc_damage <= 0:
+		return
+	for p in _zoc_coverers:
+		if is_instance_valid(p):
+			p.play_attack(_zoc_target) # 参与围攻的每一枚都转向目标
+	_zoc_target.play_be_hit()
+	var dealt := _apply_damage_to(_zoc_target, _zoc_damage) # 单向：只有目标掉血
+	if dealt > 0:
+		zoc_attacked.emit(_zoc_target, dealt)
 
 
 ## 棋子来报"我撞到另一枚棋子了"。

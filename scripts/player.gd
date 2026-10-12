@@ -23,6 +23,18 @@ enum RoleType { NONE, PROTECTOR, FIGHTER, CASTER }
 ## 攻击力。伤害 = 攻击方 atk（碰撞速度不参与，见 20-character PRD 的伤害公式）
 @export_range(0, 200, 1) var atk: int = 10
 
+@export_group("动画")
+## 一次性状态各停留多久（秒）。这些都只是"播完这个再回到 idle/walk"的时长，
+## 由用户在编辑器里对着手感调。
+@export var attack_hold_sec: float = 0.8
+@export var hit_hold_sec: float = 0.4
+@export var zoc_hold_sec: float = 1.4
+
+## 控制域半径（像素）。以棋子中心为圆心的圆；"罩住目标" = 目标中心落在这个圆内。
+## 角色和召唤物**一视同仁**（召唤物也有控制域，2026-10-12 决定）。
+## 60 是占位值（棋子半径 16 的约 3.75 倍），由用户在编辑器里试出手感。
+@export_range(0.0, 200.0, 5.0) var zoc_radius: float = 60.0
+
 ## 最大血量。血量降到 0 即成为**薄弱点**：不退场、仍全功能可用，
 ## 但此后受到的伤害全额转移给归属方。
 @export var max_hp: int = 70
@@ -84,6 +96,27 @@ var lock_armed := false        # 冲量生效、速度真的起来后才置 true
 var lock_time := 0.0
 var tilt := 0.0                # 贴图当前倾斜（弧度），0 = 正朝上
 var facing_right := true       # 贴图当前朝向：角色贴图默认面朝右
+
+## 动画状态。棋子只"报告"自己处于什么状态，播哪个动画由这张表决定。
+enum Anim { IDLE, WALK, ATTACK, BE_HIT, ZOC }
+## AnimatedSprite2D 里的动画名。**在编辑器里改名的话只改这里一处。**
+const ANIM_NAMES := {
+	Anim.IDLE: &"idle",
+	Anim.WALK: &"walk",
+	Anim.ATTACK: &"attack",
+	Anim.BE_HIT: &"be_hit",
+	Anim.ZOC: &"zoc",
+}
+var _anim_override := -1       # 一次性状态（-1 = 没有，按"动没动"决定）
+var _anim_left := 0.0
+var _anim_current := -1
+var _anim_warned := {}         # 已经警告过的缺失动画名，避免每帧刷屏
+
+## 开局快照。ResetButton 靠它把棋子"恢复如初"——
+## **在 _ready 里存**，所以你在编辑器里摆的位置/数值就是"初始"。
+var home_position := Vector2.ZERO
+var home_rotation := 0.0
+var home_atk := 0
 var aim_target := Vector2.ZERO # 瞄准终点（世界坐标），鼠标出界时保留上一次的值
 var aim_dir := Vector2.ZERO    # 瞄准方向（单位向量），鼠标贴在棋子中心时保留上一次的值
 
@@ -106,10 +139,44 @@ signal bumped(other: RigidBody2D)
 func _ready() -> void:
 	aim_target = global_position
 	hp = max_hp
+	home_position = global_position # 快照：编辑器里摆的位置就是"初始位置"
+	home_rotation = rotation
+	home_atk = atk
 	add_to_group(&"pieces") # GameFlow 靠这个组找到全盘棋子
 	# 撞到别的东西时上报。contact_monitor 已在 .tscn 里打开。
 	body_entered.connect(_on_body_entered)
 	_register_with_game_flow()
+
+
+## 恢复如初：位置、自转、速度、血量、攻击力、朝向、动画、蓄力、选中、描边。
+## 由 ResetButton 经 `GameFlow.reset_match()` 调用。
+func reset_to_home() -> void:
+	global_position = home_position
+	rotation = home_rotation
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	scale = Vector2.ONE
+	hp = max_hp
+	atk = home_atk
+	tilt = 0.0
+	facing_right = true
+	locked = false
+	lock_armed = false
+	lock_time = 0.0
+	charge = 0.0
+	charging = false
+	selected = false
+	aim_target = home_position
+	aim_dir = Vector2.ZERO
+	_anim_override = -1
+	_anim_left = 0.0
+	_anim_current = -1 # 让下一帧重新播 idle
+	if sprite != null:
+		sprite.flip_h = false
+	if aura_material != null:
+		aura_material.set_shader_parameter(&"aura_width", 0.0)
+	if line_2d != null:
+		line_2d.clear_points()
 
 
 ## 碰撞回调：**只上报事实**。撞墙（StaticBody2D）直接过滤掉，
@@ -167,20 +234,106 @@ func _process(delta: float) -> void:
 
 	_update_line(mouse, in_board)
 	_update_sprite_tilt(delta)
+	_update_anim(delta)
+
+
+# ---------- 动画状态 ----------
+# 棋子只报告"我处于什么状态"，由 _update_anim 决定播哪个。
+# 规则层（game_flow.gd）在结算时调用下面三个 play_*。
+
+## 我攻击了（碰撞里我是撞人的那方，或 ZOC 里我参与了围攻）。
+## 传 target 就把贴图**转向它** —— 攻击完不特意恢复（2026-10-12 用户要求）。
+## 实际上攻击方在碰撞后是停住的（弹性交换），速度≈0 时朝向不会被改写，所以这个朝向会留住；
+## 之后一旦移动起来，就由移动方向接管（见 `_update_sprite_tilt`）。
+func play_attack(target: Node2D = null) -> void:
+	if target != null:
+		_face_towards(target)
+	_set_anim(Anim.ATTACK, attack_hold_sec)
+
+
+## 贴图转向某个目标。角色贴图只有左右两向，所以只做左右翻转、不旋转。
+func _face_towards(target: Node2D) -> void:
+	var dx: float = target.global_position.x - global_position.x
+	if absf(dx) > 1.0:
+		facing_right = dx > 0.0
+		sprite.flip_h = not facing_right
+
+
+## 我被打了
+func play_be_hit() -> void:
+	_set_anim(Anim.BE_HIT, hit_hold_sec)
+
+
+## 我参与了 ZOC 检查
+func play_zoc() -> void:
+	_set_anim(Anim.ZOC, zoc_hold_sec)
+
+
+## 某个动画播完要多久 —— **按你在编辑器里配的帧数和 speed 现算**，不写死常量。
+## 改帧率/帧数时这里自动跟着走。贴图里没有该动画时返回 0。
+func anim_duration(a: Anim) -> float:
+	var frames := sprite.sprite_frames
+	var n: StringName = ANIM_NAMES[a]
+	if frames == null or not frames.has_animation(n):
+		return 0.0
+	var speed: float = frames.get_animation_speed(n)
+	if speed <= 0.0:
+		return 0.0
+	return float(frames.get_frame_count(n)) / speed
+
+
+## ZOC"检查"这一拍该停多久。取 zoc 动画自己的长度（7 帧 @ speed 5 = 1.4 秒）；
+## 缺动画时给一个兜底值，免得表现为 0、玩家什么都看不到。
+func zoc_windup_sec() -> float:
+	return maxf(anim_duration(Anim.ZOC), 0.35)
+
+
+func _set_anim(a: int, hold_sec: float) -> void:
+	_anim_override = a
+	_anim_left = hold_sec
+
+
+## 优先级：一次性状态（受击/攻击/ZOC）> 移动 > 静止。
+## 用"当前值比对"避免每帧重复赋值（重复 play() 会把非循环动画一直重头播）。
+func _update_anim(delta: float) -> void:
+	if _anim_override >= 0:
+		_anim_left -= delta
+		if _anim_left <= 0.0:
+			_anim_override = -1
+	var want: int = _anim_override
+	if want < 0:
+		want = Anim.WALK if linear_velocity.length() > rest_speed else Anim.IDLE
+	if want == _anim_current:
+		return
+	_anim_current = want
+	_play_anim(ANIM_NAMES[want])
+
+
+## 真正切动画。**贴图里没有这个动画时不报错**——只警告一次并点名，
+## 免得还沿用旧 SpriteFrames 的棋子（比如还没配动画的 Mob）每帧刷屏。
+func _play_anim(anim_name: StringName) -> void:
+	var frames := sprite.sprite_frames
+	if frames == null:
+		return
+	if not frames.has_animation(anim_name):
+		if not _anim_warned.has(anim_name):
+			_anim_warned[anim_name] = true
+			push_warning("'%s' 的 AnimatedSprite2D 里没有动画 '%s' —— 需要在编辑器里给它配上" % [name, anim_name])
+		return
+	sprite.animation = anim_name
+	sprite.play()
 
 # ---------- 供 TurnController 调用的能力 ----------
 # 棋子自己不解释鼠标事件：选中是排他的，裁决必须收在一个地方做
 #（见 scripts/turn_controller.gd 的注释）。这里只暴露"能不能被点中"和"选中后能做什么"。
 
-## 能不能被选中。归属必须是**我方**，且必须**是角色**。
-## 召唤物能不能被选中目前是待定项（见 20-character PRD），先按"不能"处理。
-func is_selectable() -> bool:
-	return owner_id == 0 and kind == Kind.CHARACTER
-
-
 ## 鼠标落点是否点中这枚棋子。
+##
+## 只管**几何**和"这枚球现在动没动"。归属过滤在选择层做（turn_controller.gd 的 `_pick`），
+## 角色/召唤物的区别**不在这里**——召唤物也能被发射（2026-10-12 决定），
+## 所以这里不为它开特例。设计原则：少给棋子类加约束，平衡用数值/技能/机制去调。
 func hit_test(pos: Vector2) -> bool:
-	return is_selectable() and not locked and global_position.distance_to(pos) <= pick_radius
+	return not locked and global_position.distance_to(pos) <= pick_radius
 
 ## 切换选中态。高亮开关就是切 aura_width：0 = 无描边。
 func set_selected(on: bool) -> void:
@@ -241,9 +394,8 @@ func cancel_charge() -> void:
 ## 画线：把"画什么"收在一个地方按状态分支，
 ## 指示线和蓄力条就不会各写一份 points 互相覆盖。
 func _update_line(mouse: Vector2, in_board: bool) -> void:
-	# 不可操作的球没有瞄准线；没被选中的棋子也不画（全盘只有一枚在写这条共享线）；
-	# 球还在动时同样不画
-	if not is_selectable() or not selected or line_2d == null or locked:
+	# 没被选中的棋子不画（全盘只有一枚在写这条共享线）；球还在动时也不画
+	if not selected or line_2d == null or locked:
 		return
 	if in_board:
 		aim_target = mouse # 只在盘内更新方向，出界保持上一次

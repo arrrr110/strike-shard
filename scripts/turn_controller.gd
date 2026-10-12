@@ -103,17 +103,28 @@ func clear_selection() -> void:
 
 
 ## 鼠标落点命中的棋子；万一多枚同时命中，取最近的一枚。
-## 棋子的点选半径 20、碰撞圆半径 16，正常站位下命中区互不重叠；
-## 撞到一起时"取最近"给出的仍是由几何唯一确定的结果。
+##
+## **归属过滤在这里**：只挑"此刻轮到的那一方"的棋子。棋子自己不知道轮到谁，
+## 也不该知道（见 player.gd 的 is_selectable）。
 func _pick(mouse: Vector2) -> Node2D:
 	var best: Node2D = null
 	var best_distance := INF
+	var who := _active_owner()
 	for node in get_tree().get_nodes_in_group(PIECES_GROUP):
 		var piece := node as Node2D
 		if piece == null or not piece.hit_test(mouse):
 			continue
+		if piece.owner_id != who:
+			continue # 不是轮到的那一方的棋子
 		var distance: float = piece.global_position.distance_squared_to(mouse)
 		if distance < best_distance:
 			best_distance = distance
 			best = piece
 	return best
+
+
+## 此刻轮到哪一方。问不到阶段机时按我方算 —— headless 探针里单跑选择逻辑时用。
+func _active_owner() -> int:
+	if _game_flow == null or not is_instance_valid(_game_flow):
+		return 0
+	return _game_flow.active_owner_id()

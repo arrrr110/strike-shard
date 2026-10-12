@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://byyq5iurtpnv4" path="res://sences/player.tscn" id="3_mqxhw"]
 [ext_resource type="Script" uid="uid://b03m4oh46th1s" path="res://scripts/turn_controller.gd" id="4_turnctl"]
 [ext_resource type="Script" uid="uid://de16r7d3ar80" path="res://scripts/game_flow.gd" id="5_gameflow"]
-[ext_resource type="Script" path="res://scripts/hp_overlay.gd" id="6_hpoverlay"]
+[ext_resource type="Script" uid="uid://bbh225j2yh61u" path="res://scripts/hp_overlay.gd" id="6_hpoverlay"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
@@ -103,8 +103,15 @@ offset_right = 697.0
 offset_bottom = 253.0
 text = "结束回合"
 
+[node name="ResetButton" type="Button" parent="." unique_id=1807955967]
+offset_left = 637.0
+offset_top = 13.0
+offset_right = 709.0
+offset_bottom = 44.0
+text = "重置"
+
 [node name="GameFlow" type="Node" parent="." unique_id=1744399887]
 script = ExtResource("5_gameflow")
 
-[node name="HpOverlay" type="Node2D" parent="."]
+[node name="HpOverlay" type="Node2D" parent="." unique_id=2053918702]
 script = ExtResource("6_hpoverlay")

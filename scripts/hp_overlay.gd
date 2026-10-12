@@ -22,6 +22,9 @@ const TYPE_NAMES := ["无属性", "护卫", "斗士", "施法者"]
 @export var piece_label_offset := Vector2(0, -26)
 ## 归属方血量面板的绘制位置
 @export var owner_panel_pos := Vector2(8, 424)
+## 是否画控制域圆。**没有它玩家看不见 ZOC，"围攻"就没法规划** ——
+## 这跟"看不见的系统"是同一条教训。最终形态（做进美术、或做成地面高亮）归用户。
+@export var draw_zoc: bool = true
 
 var _font: Font
 var _game_flow: Node = null
@@ -40,8 +43,35 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if _font == null:
 		return
+	if draw_zoc:
+		_draw_zoc()
 	_draw_piece_hp()
 	_draw_owner_hp()
+
+
+## 画出**此刻行动那一方**的控制域圆。行动角色的那个画亮一些 ——
+## ZOC 结算就是从它的控制域出发挑目标的。
+func _draw_zoc() -> void:
+	if _game_flow == null or not is_instance_valid(_game_flow):
+		_game_flow = get_tree().get_first_node_in_group(&"game_flow")
+		if _game_flow == null:
+			return
+	var who: int = _game_flow.active_owner_id()
+	var actor: Node2D = _game_flow.actor_piece()
+	for node in get_tree().get_nodes_in_group(PIECE_GROUP):
+		var piece := node as RigidBody2D
+		if piece == null or not is_instance_valid(piece) or piece.owner_id != who:
+			continue
+		var is_actor: bool = piece == actor
+		var col := Color(0.35, 0.75, 1.0, 0.55) if is_actor else Color(0.35, 0.75, 1.0, 0.20)
+		draw_arc(piece.global_position, piece.zoc_radius, 0.0, TAU, 64, col,
+				1.5 if is_actor else 1.0, true)
+
+	# 本次检测到的 ZOC 目标：套一个醒目的环，让"检测"这一步看得见
+	var target: RigidBody2D = _game_flow.zoc_target()
+	if target != null and is_instance_valid(target):
+		draw_arc(target.global_position, target.body_radius + 6.0, 0.0, TAU, 48,
+				Color(1.0, 0.85, 0.2, 0.9), 2.5, true)
 
 
 func _draw_piece_hp() -> void:
