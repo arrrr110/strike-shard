@@ -1,0 +1,83 @@
+design/10-turn/DESIGN.md
+  a85d95ece84e969a 38,153-171,207,287-359
+design/10-turn/PRD.md
+  a85d95ece84e969a 28,174,190-193,321-328,402,404-406
+scripts/player.gd
+  a85d95ece84e969a 26-37,99-119,142-144,151-179,237-324,331-334,336,397-398
+design/TODO.md
+  a85d95ece84e969a 1-7
+design/20-character/PRD.md
+  a85d95ece84e969a 182-186
+scripts/game_flow.gd
+  a85d95ece84e969a 34-37,51-52,86,104-106,144-146,148-155,182-183,199-213,258-294,333-334,336-337,342-348,350,353-356,358-360,365-501
+shaders/aura.gdshader
+  a85d95ece84e969a 14-15,24-25,61-67
+scripts/turn_controller.gd
+  a85d95ece84e969a 106-108,112,117-118,124-130
+scripts/hp_overlay.gd
+  a85d95ece84e969a 25-27,46-47,52-68,70-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "fef0cd88f26077bbc3431cc95259c303bdb36174",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 654,
+      "total_deletions": 122,
+      "accepted_lines": 576,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "scripts/player.gd": {
+          "additions": 174,
+          "deletions": 22,
+          "accepted_lines": 162
+        },
+        "design/20-character/PRD.md": {
+          "additions": 5,
+          "accepted_lines": 5
+        },
+        "design/TODO.md": {
+          "additions": 7,
+          "accepted_lines": 7
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 18,
+          "deletions": 12,
+          "accepted_lines": 18
+        },
+        "scripts/game_flow.gd": {
+          "additions": 277,
+          "deletions": 53,
+          "accepted_lines": 236
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 13,
+          "deletions": 2,
+          "accepted_lines": 13
+        },
+        "shaders/aura.gdshader": {
+          "additions": 11,
+          "deletions": 7,
+          "accepted_lines": 11
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 119,
+          "deletions": 26,
+          "accepted_lines": 94
+        },
+        "scripts/hp_overlay.gd": {
+          "additions": 30,
+          "accepted_lines": 30
+        }
+      }
+    }
+  }
+}
