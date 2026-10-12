@@ -1,0 +1,168 @@
+design/50-presentation/screen-shake.md
+  db0786eb9ee00006 1-105
+design/10-turn/DESIGN.md
+  a85d95ece84e969a 389-394,396-402,404-406,408-417,419-421,492,495,497-500,522
+  db0786eb9ee00006 50-52,221,226-234,282-299,395,403,407,418,422-491,493-494,496,501-521,592-593,606-607,619-635
+design/10-turn/PRD.md
+  a85d95ece84e969a 143
+  db0786eb9ee00006 27,141-142,409-410,446-448
+scripts/player.gd
+  a85d95ece84e969a 291-296
+design/50-presentation/timeline-and-markers.md
+  db0786eb9ee00006 6,8-10
+scripts/game_flow.gd
+  a85d95ece84e969a 85-99,105-106,132,135,144,148-149,389,392-398,602-623,627-630,634-635,654-655,664-665
+  db0786eb9ee00006 23-24,120-125,129,133-134,145-147,228,231-243,263-264,332-338,342,385-386,417-418,421,424,426,563,624-626,631-633,636-653,656-663,686-714
+design/40-physics/freeze-and-pause.md
+  db0786eb9ee00006 81-87
+  a85d95ece84e969a 131-134
+scripts/shake_camera.gd
+  a85d95ece84e969a 1-11,17-33,49-56,77-111,134-139
+  db0786eb9ee00006 12-16,34-48,57-76,112-133
+scripts/turn_controller.gd
+  db0786eb9ee00006 11-16
+scripts/hp_overlay.gd
+  a85d95ece84e969a 4,26-28
+design/00-overview/constraints.md
+  db0786eb9ee00006 3,22,39,62-72,74,103-105
+scripts/shake_camera.gd.uid
+  db0786eb9ee00006 1
+sences/main.tscn
+  a85d95ece84e969a 9,30-36,48,52,101,107,114,121-125
+scripts/tile_map_layer.gd
+  db0786eb9ee00006 3-7,10,12-13
+design/README.md
+  db0786eb9ee00006 4,15,20-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "a274fd1b3a4b92226ca1a294f5dc4d36954fbe24",
+  "prompts": {
+    "a85d95ece84e969a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47019117-f855-4a80-b86d-6bb6effb5e2e",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 235,
+      "total_deletions": 34,
+      "accepted_lines": 214,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "scripts/shake_camera.gd": {
+          "additions": 79,
+          "accepted_lines": 77
+        },
+        "scripts/game_flow.gd": {
+          "additions": 81,
+          "deletions": 6,
+          "accepted_lines": 66
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 39,
+          "accepted_lines": 36
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "scripts/player.gd": {
+          "additions": 6,
+          "accepted_lines": 6
+        },
+        "sences/main.tscn": {
+          "additions": 19,
+          "deletions": 5,
+          "accepted_lines": 19
+        },
+        "design/40-physics/freeze-and-pause.md": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "scripts/hp_overlay.gd": {
+          "additions": 5,
+          "deletions": 20,
+          "accepted_lines": 5
+        }
+      }
+    },
+    "db0786eb9ee00006": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca59ca-1077-45d1-bc12-d73406f5759d",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 500,
+      "total_deletions": 82,
+      "accepted_lines": 483,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/40-physics/freeze-and-pause.md": {
+          "additions": 9,
+          "deletions": 2,
+          "accepted_lines": 7
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 7,
+          "deletions": 2,
+          "accepted_lines": 6
+        },
+        "design/50-presentation/screen-shake.md": {
+          "additions": 105,
+          "accepted_lines": 105
+        },
+        "design/50-presentation/timeline-and-markers.md": {
+          "additions": 4,
+          "deletions": 1,
+          "accepted_lines": 4
+        },
+        "scripts/game_flow.gd": {
+          "additions": 108,
+          "deletions": 28,
+          "accepted_lines": 108
+        },
+        "design/00-overview/constraints.md": {
+          "additions": 18,
+          "deletions": 6,
+          "accepted_lines": 18
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 165,
+          "deletions": 22,
+          "accepted_lines": 151
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 8,
+          "deletions": 2,
+          "accepted_lines": 8
+        },
+        "scripts/shake_camera.gd": {
+          "additions": 62,
+          "deletions": 2,
+          "accepted_lines": 62
+        },
+        "scripts/shake_camera.gd.uid": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "scripts/tile_map_layer.gd": {
+          "additions": 8,
+          "deletions": 12,
+          "accepted_lines": 8
+        },
+        "design/README.md": {
+          "additions": 5,
+          "deletions": 5,
+          "accepted_lines": 5
+        }
+      }
+    }
+  }
+}
