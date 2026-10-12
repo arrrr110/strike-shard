@@ -8,7 +8,12 @@ extends Node2D
 ## 这里一次性挑出"鼠标下最近的那枚"，结果只由几何决定。
 ##
 ## 用 Node2D 而不是 Node，是为了让 get_global_mouse_position() 和棋子那边
-## 落在同一个坐标空间里（棋盘上没有 Camera2D，两者都是世界坐标）。
+## 落在同一个坐标空间里。`main.tscn` 里现在有 Camera2D（还带一点 zoom），
+## 但 `get_global_mouse_position()` 照样返回世界坐标 —— 它**包含** canvas transform，
+## 所以这里、棋子的 `table_rect`、以及盘面上的瞄准线依然是同一套坐标。
+##
+##（副作用：相机抖动时鼠标的世界坐标也跟着偏。抖动的表现闸门因此也拦操作许可，
+##  见 game_flow.gd 的 is_presenting()。）
 ##
 ## 后续接回合阶段机时，"此刻是否允许选中/蓄力"就在这里裁决（对应 spec 的
 ## "操作许可由阶段机发放"）。棋子只提供能力，不自己判断。

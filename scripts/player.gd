@@ -288,6 +288,12 @@ func zoc_windup_sec() -> float:
 	return maxf(anim_duration(Anim.ZOC), 0.35)
 
 
+## 碰撞冻结该冻多久。取 **attack** 动画自己的长度（2026-10-12 用户决定：只看行动角色的动画）。
+## 缺动画时给兜底值，免得冻 0 秒、等于没冻。
+func attack_windup_sec() -> float:
+	return maxf(anim_duration(Anim.ATTACK), 0.2)
+
+
 func _set_anim(a: int, hold_sec: float) -> void:
 	_anim_override = a
 	_anim_left = hold_sec

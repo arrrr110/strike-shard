@@ -20,6 +20,8 @@ enum Phase { TURN_START, PLAYER_TURN, MOTION, TURN_END, ENEMY_TURN }
 
 const NO_TRANSITION := -1
 const PIECES_GROUP := &"pieces"
+## 归属方血量标签上显示的名字。索引 = `owner_id`，与 `owner_hp` 同序。
+const OWNER_NAMES := ["我方", "敌方"]
 
 const PHASE_NAMES := {
 	Phase.TURN_START: "TURN_START 回合开始",
@@ -80,10 +82,28 @@ var _actor: Node2D = null
 ## 不去重就会把同一次碰撞结算两遍。每物理帧重置（一次接触只算一次）。
 var _settled_pairs: Dictionary = {}
 
+## 碰撞冻结（2026-10-12）。流程：
+##
+##   撞上 → **冻结物理** → 行动角色播 attack、被撞方播 be_hit
+##        → 等**行动角色的 attack 动画**播完 → 结算伤害 → **解冻** → 物理继续
+##
+## 为什么能冻：`PhysicsServer2D.set_active(false)` 停的是物理积分，**不停场景树**，
+## 所以 `_process` 照常跑、动画照常播。实测（本机 4.7.2）：
+## 冻结 1 秒位置零漂移、速度与角速度原样保留，解冻后的轨迹与"从不冻结"逐帧完全一致。
+##
+## ⚠️ **但 `_physics_process` 也照常跑** —— 阶段机不会自己停。所以 `_physics_process`
+## 开头有一道显式的冻结闸门，否则动画还在播、阶段就已经翻页了（决策 4 的"表现排空"）。
+var _impact_frozen := false
+var _impact_timer := 0.0
+## 待结算的碰撞对。同一物理步里撞到两枚会攒成两条，解冻时一起结算。
+var _impact_pending: Array = []
+
 var _turn_controller: Node = null
 var _phase_label: Label = null
 var _end_turn_button: Button = null
 var _reset_button: Button = null
+var _camera: ShakeCamera = null
+var _owner_hp_label: Label = null
 
 
 func _ready() -> void:
@@ -96,14 +116,23 @@ func _ready() -> void:
 		register_piece(p)
 	owner_hp = [owner_max_hp, owner_max_hp]
 	_turn_controller = get_tree().get_first_node_in_group(&"turn_controller")
-	_phase_label = get_node_or_null("../LifeCycle") as Label
-	_end_turn_button = get_node_or_null("../EndTurnButton") as Button
+
+	# ⚠️ **UI 全在 `UI/`（CanvasLayer）下，路径里必须带 `UI/`。**
+	# 加相机时这些节点从 `main` 下搬进了 UI 层（世界坐标里的东西会跟着抖，屏幕 UI 不该跟着），
+	# 但**搬完忘了改这里的路径**——用的又是 `get_node_or_null`，于是静默失败：
+	# 阶段名不显示、"结束回合"与"重置"两个按钮直接变死。这类错不会报错，只会"点了没反应"。
+	_phase_label = get_node_or_null("../UI/LifeCycle") as Label
+	_end_turn_button = get_node_or_null("../UI/EndTurnButton") as Button
 
 	if _end_turn_button != null:
 		_end_turn_button.pressed.connect(request_end_turn)
-	_reset_button = get_node_or_null("../ResetButton") as Button
+	_reset_button = get_node_or_null("../UI/ResetButton") as Button
 	if _reset_button != null:
 		_reset_button.pressed.connect(reset_match)
+	_camera = get_node_or_null("../ShakeCamera") as ShakeCamera
+	_owner_hp_label = get_node_or_null("../UI/OwnerHp") as Label
+	owner_hp_changed.connect(_on_owner_hp_changed)
+	_update_owner_hp_label()
 	if _turn_controller != null and _turn_controller.has_signal(&"piece_launched"):
 		_turn_controller.piece_launched.connect(_on_piece_launched)
 
@@ -112,6 +141,12 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_settled_pairs.clear() # 一次接触开始只结算一次；每物理帧重置（见 _on_piece_bumped）
+
+	# **表现期间不推进阶段、也不累计停留时间**（见 is_presenting）。
+	# 不拦的话，冻结时动画还在播、阶段就已经翻页了 —— 这正是决策 4 说的"表现排空"。
+	if is_presenting():
+		return
+
 	_dwell += delta
 
 	# 至多一条边，用 if 不用 while（红线 #3）
@@ -190,10 +225,22 @@ func _leave(p: Phase) -> void:
 
 # ---------- 对外 ----------
 
-## 操作许可：只有"我的回合"且本回合还没发射过，才允许选中/蓄力。
+## 操作许可：只有"我的回合"、本回合还没发射过、**且没有表现在播**，才允许选中/蓄力。
 ## TurnController 每次按下左键前问一句（spec："操作许可由阶段机发放"）。
 func can_operate_pieces() -> bool:
-	return phase == Phase.PLAYER_TURN and launch_available
+	return phase == Phase.PLAYER_TURN and launch_available and not is_presenting()
+
+
+## 表现是否还在播（碰撞冻结 / 屏幕抖动）。**阶段机与操作许可都靠它放行**（决策 4 的"表现排空"）。
+##
+## 两件事都要拦，理由各不一样：
+##   · 冻结：物理停了，但 `_physics_process` 照常被调用（实测），不拦阶段就自己翻页了
+##   · 抖动：相机一动，`get_global_mouse_position()` 就跟着偏（实测），
+##     不拦的话玩家会在画面还抖着的时候开始蓄力，瞄准方向是抖的
+func is_presenting() -> bool:
+	if _impact_frozen:
+		return true
+	return _camera != null and is_instance_valid(_camera) and _camera.is_shaking()
 
 
 ## 此刻轮到哪一方行动。选择层靠它决定"哪些棋子能点"——归属判定收在这里，
@@ -213,8 +260,8 @@ func actor_piece() -> Node2D:
 
 ## 把伤害结算到某个归属方的血量池上。返回实际扣掉多少（血量下限 0）。
 ##
-## 目前**没有调用方**——碰撞伤害是下一步（见 [20-character PRD] 的伤害去向表）。
-## 先放在这里是为了让血量池**能被改**：不然显示出来的 99 永远是个常量，没法验证显示是否真的连着状态。
+## 调用方是 `_apply_damage_to()`：角色血量扣不完的溢出、以及已是薄弱点的全额伤害，
+## 都从这里转到归属方头上（见 [20-character PRD] 的伤害去向表）。
 func damage_owner(who: int, amount: int) -> int:
 	if who < 0 or who >= owner_hp.size() or amount <= 0:
 		return 0
@@ -282,10 +329,17 @@ func reset_match() -> void:
 	_zoc_target = null
 	_zoc_coverers = []
 
+	# 5. 表现闸门也要清：可能正冻着物理（重置落在冻结窗口内）、或正抖着画面。
+	#    不清冻结会把伤害打到刚复位的棋子上；不清抖动会让新一局开局先抖一下。
+	#    按钮不受阶段机管辖，所以这两个状态是真的够得着的。
+	_clear_impact_freeze()
+	if _camera != null and is_instance_valid(_camera):
+		_camera.stop()
+
 	if _turn_controller != null and is_instance_valid(_turn_controller):
 		_turn_controller.clear_selection()
 
-	# 5. 回到开局阶段（_enter 会打开发射边锁、复位 _actor、刷新按钮与阶段名）
+	# 6. 回到开局阶段（_enter 会打开发射边锁、复位 _actor、刷新按钮与阶段名）
 	var from := phase
 	phase = Phase.TURN_START
 	_enter(phase)
@@ -328,15 +382,20 @@ func load_card(_card: Variant, _piece: Node) -> bool:
 # 接表现时再补，届时 `_resolve_collision` 就是"生成一个碰撞事件"的位置。
 
 
-## 一次棋子碰撞的结算。**双向**：双方各打出自己的 atk（互相交换，
-## 不是"撞的一方打人、被撞的一方挨打"）。
-## 一次棋子碰撞的结算。**伤害是双向的**（双方各打出自己的 atk），
+## 一次棋子碰撞的结算。**伤害是双向的**（双方各打出自己的 atk，
+## 不是"撞的一方打人、被撞的一方挨打"），
 ## 但**表现是单向的**：`a` 是行动角色（撞过去的那一枚），它播 attack，`b` 播 be_hit。
 func _resolve_collision(a: RigidBody2D, b: RigidBody2D) -> void:
+	# 1. 表现：行动角色挥剑并转向被撞的那一枚，被撞的挨打
 	a.play_attack(b)
 	b.play_be_hit()
-	_exchange(a, b)
-	_exchange(b, a)
+	# 2. 冻住物理，让这一下看得见（同一物理步撞两枚会攒成两条，一起结算）
+	_impact_pending.append([a, b])
+	if not _impact_frozen:
+		_impact_frozen = true
+		_impact_timer = a.attack_windup_sec()
+		PhysicsServer2D.set_active(false)
+	# 3. 伤害**不在这里结算** —— 等行动角色的攻击动画播完，见 `_end_freeze()`
 
 
 ## 把 amount 点伤害打到 defender 身上。**伤害去向的唯一出口**（碰撞与 ZOC 共用）。
@@ -355,14 +414,16 @@ func _apply_damage_to(defender: RigidBody2D, amount: int) -> int:
 
 ## attacker 打 defender 一次。伤害 = 攻击方 atk × 倍率（倍率目前恒为 1，克制已屏蔽）。
 ##
-## ⚠️ **这里只管数值，不碰表现**。动画由调用方按"谁是行动角色"决定（见 `_resolve_collision`）。
+## ⚠️ **这里只管数值，不碰表现**。返回**实际打出的伤害量**，由调用方决定怎么表现
+## （抖动档位）；动画由调用方按"谁是行动角色"决定（见 `_resolve_collision`）。
 ## 曾经把 `play_attack/play_be_hit` 写在这里，结果：它在同一帧被调用两次，
 ## 后一次把前一次覆盖掉 —— 攻击方播了 be_hit、被撞的播了 attack，完全反了。
-func _exchange(attacker: RigidBody2D, defender: RigidBody2D) -> void:
+func _exchange(attacker: RigidBody2D, defender: RigidBody2D) -> int:
 	var dmg := int(round(float(attacker.atk) * attacker.damage_multiplier_against(defender)))
 	if dmg <= 0:
-		return
+		return 0
 	_apply_damage_to(defender, dmg)
+	return dmg
 
 
 # ---------- ZOC 结算（环节 3） ----------
@@ -499,6 +560,7 @@ func _strike_zoc() -> void:
 	var dealt := _apply_damage_to(_zoc_target, _zoc_damage) # 单向：只有目标掉血
 	if dealt > 0:
 		zoc_attacked.emit(_zoc_target, dealt)
+	_shake_for_damage(dealt)
 
 
 ## 棋子来报"我撞到另一枚棋子了"。
@@ -537,6 +599,70 @@ func _on_piece_bumped(reported: RigidBody2D, reporter: RigidBody2D) -> void:
 	_resolve_collision(a, b)
 
 
+# ---------- 碰撞冻结 ----------
+#
+# 计时用 `_process` 的 delta，不用 `_physics_process` 的 —— 动画是在 `_process` 里推进的，
+# 两边用同一个时钟，帧率与物理帧率不一致时才不会对不上。
+
+
+func _process(delta: float) -> void:
+	if not _impact_frozen:
+		return
+	_impact_timer -= delta
+	if _impact_timer <= 0.0:
+		_end_freeze()
+
+
+## 解冻 + 结算。**先解冻再结算**：结算会改血量、发信号，不该在一个"物理停着"的状态里做。
+func _end_freeze() -> void:
+	_impact_frozen = false
+	_impact_timer = 0.0
+	PhysicsServer2D.set_active(true)
+
+	var pairs := _impact_pending
+	_impact_pending = []
+	# 这一批里**最重的一下**决定抖多狠：同一物理步撞了两枚时，
+	# 别让后结算的轻伤盖掉重伤（ShakeCamera 自己也会拦"更弱的别打断更猛的"）
+	var worst := 0
+	for pair in pairs:
+		var a: RigidBody2D = pair[0]
+		var b: RigidBody2D = pair[1]
+		if is_instance_valid(a) and is_instance_valid(b):
+			worst = maxi(worst, _exchange(a, b)) # 双向：双方各打出自己的 atk
+			worst = maxi(worst, _exchange(b, a))
+	_shake_for_damage(worst)
+
+
+## 伤害落地那一刻的抖动。**这是抖动的唯一入口** —— 想改"多少伤害抖多狠"，
+## 去 `ShakeCamera` 上调 `severe_at` / `destructive_at`，别在这里判断档位。
+## 相机缺席（headless 探针、或忘了摆相机）时静默跳过：表现不该拦住规则。
+##
+## ⚠️ **临时直连**：`50-presentation` 的设计里，这类表现应由时间线的 `hit` 标记驱动
+##（见 design/50-presentation/timeline-and-markers.md）。时间线落地后，
+## 这个调用点要挪到标记上；在那之前"奖励直连、惩罚空等"（决策 4 的取向）。
+func _shake_for_damage(amount: int) -> void:
+	if amount <= 0:
+		return
+	if _camera != null and is_instance_valid(_camera):
+		_camera.shake_for_damage(amount)
+
+
+## 解冻 + 丢掉待结算的碰撞对。重置时用。
+## 不丢的话：冻结窗口内点"重置"，`_process` 里的计时器照常走到头，会把伤害
+## 结算到**刚复位的棋子**身上（计时器只管解冻，不认自己已经过期了）。
+func _clear_impact_freeze() -> void:
+	if _impact_frozen:
+		PhysicsServer2D.set_active(true)
+	_impact_frozen = false
+	_impact_timer = 0.0
+	_impact_pending.clear()
+
+
+## 兜底：万一在冻结中途退出（切场景 / 关游戏），别把物理永久冻死。
+func _exit_tree() -> void:
+	_clear_impact_freeze()
+
+
 # ---------- 内部 ----------
 
 func _on_piece_launched(piece: Node) -> void:
@@ -555,6 +681,35 @@ func _update_button() -> void:
 func _update_label() -> void:
 	if _phase_label != null:
 		_phase_label.text = str(PHASE_NAMES.get(phase, "?"))
+
+
+# ---------- 归属方血量显示 ----------
+#
+# 标签本身在 `main.tscn` 的 `UI`（CanvasLayer）下。**世界坐标里的东西会跟着相机抖，
+# 屏幕 UI 不该跟着抖** —— 加了相机之后，它就从 hp_overlay.gd 的 `_draw` 挪到了这里。
+#
+# 只在这里刷新、不在 `_process` 里每帧刷：归属方血量是**对局级状态**（比回合并寿），
+# 只有 `damage_owner()` 与 `reset_match()` 会改它，两处都发 `owner_hp_changed`。
+
+
+func _on_owner_hp_changed(_owner_id: int, _hp: int) -> void:
+	_update_owner_hp_label()
+
+
+func _update_owner_hp_label() -> void:
+	if _owner_hp_label == null or not is_instance_valid(_owner_hp_label):
+		return
+	var lines := PackedStringArray()
+	var any_zero := false
+	for i in owner_hp.size():
+		var who: String = OWNER_NAMES[i] if i < OWNER_NAMES.size() else "归属方 %d" % i
+		lines.append("%s  %d / %d" % [who, owner_hp[i], owner_max_hp])
+		if owner_hp[i] <= 0:
+			any_zero = true
+	_owner_hp_label.text = "\n".join(lines)
+	# 有一方归零就整体标红。**逐行上色做不到**（一个 Label 只有一个颜色），
+	# 要分色得拆成两个标签或换 RichTextLabel —— 那是最终 UI 的事，等美术定。
+	_owner_hp_label.modulate = Color(1.0, 0.4, 0.4) if any_zero else Color.WHITE
 
 
 ## 全场静止：所有棋子的线速度与角速度各自低于阈值，且连续 N 个物理帧都如此。

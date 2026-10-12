@@ -1,7 +1,7 @@
 extends Node2D
 
 ## 血量显示（**调试级，不是最终 UI**）：
-## 在每枚棋子头上画当前血量，左下角画两个归属方的血量池。
+## 在每枚棋子头上画血量与类型，并画出此刻行动那一方的控制域圆。
 ##
 ## 为什么用 `_draw` 而不是给每枚棋子挂一个 `Label`：
 ##   棋子是刚体，会自转；挂在它下面的 Label 会跟着转，要再写一份抵消旋转的逻辑。
@@ -12,7 +12,6 @@ extends Node2D
 ## 属于美术与布局工作，由用户在编辑器里做 —— 那时把这个节点删掉即可。
 
 const PIECE_GROUP := &"pieces"
-const OWNER_NAMES := ["我方", "敌方"]
 ## 与 player.gd 的 RoleType 同序：NONE / PROTECTOR / FIGHTER / CASTER
 const TYPE_NAMES := ["无属性", "护卫", "斗士", "施法者"]
 
@@ -20,11 +19,13 @@ const TYPE_NAMES := ["无属性", "护卫", "斗士", "施法者"]
 @export var font_size: int = 16
 ## 血量文字相对棋子中心的偏移（向上为负）
 @export var piece_label_offset := Vector2(0, -26)
-## 归属方血量面板的绘制位置
-@export var owner_panel_pos := Vector2(8, 424)
 ## 是否画控制域圆。**没有它玩家看不见 ZOC，"围攻"就没法规划** ——
 ## 这跟"看不见的系统"是同一条教训。最终形态（做进美术、或做成地面高亮）归用户。
 @export var draw_zoc: bool = true
+
+## 归属方血量面板**不在这里画** —— 它是屏幕上的 UI，而本节点画在世界坐标里。
+## 加了相机之后，世界坐标的东西会跟着抖动、UI 不该跟着。所以它挪到了
+## `main.tscn` 的 `UI`（CanvasLayer）下的 `OwnerHp` 标签里。
 
 var _font: Font
 var _game_flow: Node = null
@@ -46,7 +47,6 @@ func _draw() -> void:
 	if draw_zoc:
 		_draw_zoc()
 	_draw_piece_hp()
-	_draw_owner_hp()
 
 
 ## 画出**此刻行动那一方**的控制域圆。行动角色的那个画亮一些 ——
@@ -104,18 +104,3 @@ func _draw_centered(text: String, pos: Vector2, color: Color) -> void:
 	var w: float = _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	draw_string(_font, pos - Vector2(w * 0.5, 0.0), text,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-
-
-func _draw_owner_hp() -> void:
-	if _game_flow == null or not is_instance_valid(_game_flow):
-		_game_flow = get_tree().get_first_node_in_group(&"game_flow")
-		if _game_flow == null:
-			return
-
-	for i in _game_flow.owner_hp.size():
-		var hp: int = _game_flow.owner_hp[i]
-		var who: String = OWNER_NAMES[i] if i < OWNER_NAMES.size() else "归属方 %d" % i
-		var text := "%s  %d / %d" % [who, hp, _game_flow.owner_max_hp]
-		var color := Color(1.0, 0.4, 0.4) if hp <= 0 else Color(1.0, 1.0, 1.0)
-		draw_string(_font, owner_panel_pos + Vector2(0.0, i * (font_size + 6)), text,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
