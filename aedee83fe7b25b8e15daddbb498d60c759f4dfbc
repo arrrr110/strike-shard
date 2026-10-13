@@ -1,0 +1,77 @@
+sences/main.tscn
+  db0786eb9ee00006 10,131-133
+design/10-turn/PRD.md
+  db0786eb9ee00006 30-35,56-57,60-61,71,87-91,249-286,418,462-464,504-505
+scripts/enemy_bot.gd
+  db0786eb9ee00006 1-188
+design/10-turn/DESIGN.md
+  db0786eb9ee00006 546-633,705-707,724-725
+tools/probe/mechanism_probe.gd
+  db0786eb9ee00006 25,58-62,101-102,231,239,242-271,273-276
+scripts/turn_controller.gd
+  db0786eb9ee00006 76-106
+scripts/game_flow.gd
+  db0786eb9ee00006 1,11-16,71-76,78-84,193,215,228-233,238-240,243-245,252,254-265,276-280,289,292-313,328-329,331-332,334,379-380,382,765-767,831
+tools/verify.sh
+  db0786eb9ee00006 78-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "aedee83fe7b25b8e15daddbb498d60c759f4dfbc",
+  "prompts": {
+    "db0786eb9ee00006": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca59ca-1077-45d1-bc12-d73406f5759d",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 634,
+      "total_deletions": 144,
+      "accepted_lines": 543,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/10-turn/PRD.md": {
+          "additions": 82,
+          "deletions": 26,
+          "accepted_lines": 73
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 100,
+          "deletions": 7,
+          "accepted_lines": 93
+        },
+        "tools/probe/mechanism_probe.gd": {
+          "additions": 47,
+          "deletions": 6,
+          "accepted_lines": 47
+        },
+        "sences/main.tscn": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "tools/verify.sh": {
+          "additions": 16,
+          "accepted_lines": 16
+        },
+        "scripts/enemy_bot.gd": {
+          "additions": 257,
+          "deletions": 69,
+          "accepted_lines": 188
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 33,
+          "deletions": 6,
+          "accepted_lines": 31
+        },
+        "scripts/game_flow.gd": {
+          "additions": 95,
+          "deletions": 30,
+          "accepted_lines": 91
+        }
+      }
+    }
+  }
+}
