@@ -1,8 +1,7 @@
 [gd_scene format=3 uid="uid://5shhm87diwlp"]
 
-[ext_resource type="Texture2D" uid="uid://dyosrjvgu4txh" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_1.png" id="1_nokgg"]
-[ext_resource type="Texture2D" uid="uid://dg0suf118rea6" path="res://dodge_the_creeps_2d_assets/art/enemyWalking_2.png" id="2_ubaqv"]
-[ext_resource type="Script" path="res://scripts/player.gd" id="3_playergd"]
+[ext_resource type="Texture2D" uid="uid://0q3gpmttosha" path="res://dodge_the_creeps_2d_assets/Tiny Swords (Update 010)/Deco/18.png" id="2_fcj05"]
+[ext_resource type="Script" uid="uid://blix3o11fdnmx" path="res://scripts/player.gd" id="3_playergd"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_mob"]
 bounce = 0.8
@@ -14,10 +13,7 @@ radius = 16.03122
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("1_nokgg")
-}, {
-"duration": 1.0,
-"texture": ExtResource("2_ubaqv")
+"texture": ExtResource("2_fcj05")
 }],
 "loop": 1,
 "name": &"default",
@@ -27,9 +23,9 @@ animations = [{
 [node name="Mob" type="RigidBody2D" unique_id=1811971316]
 physics_material_override = SubResource("PhysicsMaterial_mob")
 gravity_scale = 0.0
-linear_damp_mode = 1
 contact_monitor = true
 max_contacts_reported = 4
+linear_damp_mode = 1
 script = ExtResource("3_playergd")
 owner_id = 1
 
@@ -37,8 +33,6 @@ owner_id = 1
 shape = SubResource("CircleShape2D_6strp")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=191182854]
-rotation = -1.5707964
-scale = Vector2(0.3, 0.3)
+scale = Vector2(0.5, 0.5)
 sprite_frames = SubResource("SpriteFrames_joqdt")
-frame = 1
 frame_progress = 0.6726278

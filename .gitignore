@@ -1,3 +1,6 @@
+# macOS 的 Finder 元数据 —— 随素材包混进来过 55 个，别让它再进仓库
+.DS_Store
+
 # Godot 4+ specific ignores
 .godot/
 /android/
