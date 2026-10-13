@@ -73,10 +73,37 @@ func handle_left_press(mouse: Vector2) -> void:
 func handle_left_release() -> void:
 	if selected_piece == null:
 		return
-	var launching: Node2D = selected_piece
-	if launching.release_charge():
-		clear_selection()
-		piece_launched.emit(launching)
+	_release(selected_piece)
+
+
+## 真的发射一枚。**玩家松手和 bot 出手都落到这里** —— 所以阶段机看到的永远是同一件事
+##（`piece_launched`），不需要第二条代码路径，也不会出现"某条路径忘了关边锁"。
+func _release(piece: Node2D) -> bool:
+	if not piece.release_charge():
+		return false
+	clear_selection()
+	piece_launched.emit(piece)
+	return true
+
+
+## 程序化发射（敌方回合的 `EnemyBot` 走这里）。与玩家路径的差别**只有"谁决定方向与力度"**：
+## 玩家的方向来自鼠标、力度来自按住时长；bot 的两者都由它自己算出来。
+##
+## **会先选中它要用的那一枚** —— 和玩家点一下选中是对等的，让玩家看得见敌方在用哪一枚，
+## 否则只会看到一枚球莫名其妙飞出去。选中态由 `GameFlow._leave(ENEMY_TURN)` 统一清掉。
+func launch(piece: Node2D, aim_at: Vector2, charge: float) -> bool:
+	if piece == null or not is_instance_valid(piece) or piece.locked:
+		return false
+	select(piece)
+	# ⚠️ `begin_charge()` 是 **void**，不能写 `if not piece.begin_charge(...)` ——
+	# GDScript 把 void 调用当 `null`，`not null` 恒为真，这个入口会永远返回 false。
+	# 只能调完再问 `charging`（2026-10-13 踩过：bot 出手被静默拒绝，棋子一动不动）。
+	piece.begin_charge(aim_at)
+	if not piece.charging:
+		return false # 没进蓄力态：方向落在棋盘外，或棋子被锁着
+	piece.aim_dir = (aim_at - piece.global_position).normalized()
+	piece.charge = charge
+	return _release(piece)
 
 
 ## 操作许可由阶段机发放（spec："棋子 MUST NOT 自行判断当前是否可被操作"）。

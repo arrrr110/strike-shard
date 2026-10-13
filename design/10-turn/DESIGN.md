@@ -543,6 +543,94 @@ MOTION 会在动画播完之前就满足静止条件。
 所以"逻辑值与表现不一致"目前只在**时机**上体现：伤害数字要等冻结结束才落地。
 将来做滚动血条时，记住它是**表现**，不是第二个真相。
 
+## 敌方回合与 bot（2026-10-13 加入）
+
+**`ENEMY_TURN` 从占位变成真阶段**，与 `PLAYER_TURN` 结构对称：
+
+```
+TURN_END ─(1s)→ ENEMY_TURN ─(bot 出手)→ MOTION ─(静止)→ ENEMY_TURN ─(bot 收工)→ TURN_START
+```
+
+### 对称是设计出来的，不是碰巧
+
+规则本来就对称 —— `_actor` 机制不区分敌我，谁被发射谁就是行动角色；ZOC、静止判定、
+碰撞冻结全都不知道"是谁在打"。所以 bot 不需要第二条代码路径，它只是**另一个发号施令的人**。
+三道门都是共用的：
+
+| 门 | 玩家走 | bot 走 | 共用的是什么 |
+| --- | --- | --- | --- |
+| 出手许可 | `can_operate_pieces()` | `can_enemy_launch()` | 同一个 `launch_available` 边锁（决策 11） |
+| 发射出口 | 松手 → `handle_left_release` | `TurnController.launch()` | 同一个 `_release()` → `piece_launched` |
+| 收工意愿 | 点按钮 → `request_end_turn()` | `request_end_turn()` | 同一个 `_end_turn_requested` |
+
+**`MOTION` 返回"发起方自己的枢纽"**（靠 `_active_owner` 判定），不写死回 `PLAYER_TURN`。
+`_active_owner` 是 `_enter` 里按阶段写下的，不是从 `phase` 现算 ——
+`phase == PLAYER_TURN ? 0 : 1` 那种写法会把 `MOTION` 判成敌方回合，
+**顺便修掉一个显示 bug**：以前 `MOTION` 期间 `hp_overlay` 画的是敌方的控制域圆。
+
+### ⚠️ 踩到的两个坑
+
+**1. 发射边锁必须是两把，不能一把。**
+
+玩家出完手走的是 `PLAYER_TURN → TURN_END → ENEMY_TURN`，**不经过 `TURN_START`** ——
+只在 `TURN_START` 重开的一把锁，会把敌方锁死，整个敌方回合动不了
+（探针里表现为"卡在阶段 4 二十五秒"，因为 `ENEMY_TURN` 的完成条件等不到 bot 出手）。
+
+修完是 `launch_available: Array[bool]`，索引 = `owner_id`，在自己回合开始时重开自己那把。
+**但"自己回合开始"不能简单地写成"进入枢纽"** —— 枢纽会被 `MOTION` 回访，
+那样敌人一回合能打两发。判据是 `from != MOTION`（`_enter` 因此多收一个 `from` 参数）。
+
+**2. `begin_charge()` 是 `void`，不能写 `if not piece.begin_charge(...)`。**
+
+GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会**永远返回 false**，
+而且 `charging` 已经置上了，看起来像"棋子不听话"。
+踩到的症状：bot 挑好了目标、算好了力度，发射被静默拒绝，棋子一动不动。
+只能调完再问 `piece.charging`。
+
+### bot 自己：`scripts/enemy_bot.gd`
+
+**第一版是"会还手"的对手，不是"聪明"的对手**（决策 38）。策略就一句话（决策 39）：
+
+> **目标 = 对方血量最低的棋子 → 射手 = 离它最远的那一枚 → 力度 = 极限（满蓄力）**
+
+**为什么从"挑最近的一对"改成这套**：旧策略实机测下来**总是同一枚棋子在动**、其余整局不动，
+谈不上策略感。新的这套一次给出三件事：**射手会换**（最远的那个离得远）、
+**目标会换**（血线一变，几何就变）、**位移最夸张**（满蓄力射程 600 px）。
+
+**满蓄力一定够得着**：射程 = `max_charge²/(2·decel)` = 600 px，棋盘对角线只有 572 px。
+所以"极限力量"不需要额外的可达性判断（代码里仍留了兜底，给以后不同棋子配不同上限用）。
+
+**血量归零的薄弱点自然排在最前**，所以不需要再单写一条"优先打薄弱点"——
+目标就是"血量最低"，决策 25 的薄弱点自动落在这个定义里。
+
+**为什么单独一个节点、不写进 `game_flow`**：那边已经 750+ 行、占全项目 44%
+（见 [TODO.md](../TODO.md) 第 3 条）。**bot 是"决策"，不是"规则"**，理应分开；
+卡牌落地时要拆 game_flow，这算提前把它往对的方向推了一步。
+
+**并列时按名字定序**（`_lower_hp_wins` / `_farther_wins`）—— 结构性红线 #2：
+不依赖节点树 / 字典的迭代顺序。
+
+导出参数只剩两个（想打谁 / 打哪个目标 / 用多大力现在都是规则，不再是旋钮）：
+
+| 旋钮 | 默认 | 管什么 |
+| --- | --- | --- |
+| `think_sec` | 0.8 s | 出手前停顿。让玩家看清敌方在用哪一枚、瞄哪里 |
+| `aim_jitter_deg` | 0 | 瞄准抖动，给难度留的旋钮。非 0 会让每局不可复现 |
+
+**它不预测轨迹**（瞄直线，不管中途撞到谁）、不搜索、不评分。那些等打过几局再说。
+
+> ⚠️ **极限力量会把"一次发射两次伤害"变成常态**：满蓄力的被撞方拿到的速度很高，
+> 常常撞墙折返再撞回行动角色，触发第二次结算（见「一次发射可能结算不止一次」）。
+> 调数值时要把它算进去 —— 这是这套策略最直接的数值后果。
+
+### 实测（`bash tools/verify.sh` 的敌方回合段）
+
+| 测的事 | 结果 |
+| --- | --- |
+| 按下结束回合 → `TURN_END` → `ENEMY_TURN` | 阶段 4，bot 停顿 `think_sec` 后出手 |
+| bot 真的出一手 | 敌方棋子移动 **232.9 px**（旧策略"挑最近的一对"只有 66.7 px —— 满蓄力的位移差别很直观） |
+| 回合交回玩家 | 阶段回到 `TURN_START`，`can_operate_pieces()` 重新为真 |
+
 ## 棋子的锁定（`locked` 等）
 
 这套判定管的是**"这枚球此刻能不能被选中"**，与棋盘级的"回合能不能推进"是两件事：
@@ -614,6 +702,9 @@ MOTION 会在动画播完之前就满足静止条件。
 | 21 | 四壁 `friction = 0` | `main.tscn` 的 `PhysicsMaterial_6strp` |
 | 35 | 逻辑值是唯一真相，动画扣血是纯表现 | 伤害在 `_end_freeze` / `_strike_zoc` 里直接改数值，`hp_overlay` 直接读 `piece.hp` —— 中间没有"等动画"的一层 |
 | 36 | 屏幕抖动三档、伤害落地时触发、相机比窗口小一圈 | `shake_camera.gd` + `game_flow.gd._shake_for_damage()`；`reserve_px` → `zoom` 在 `ShakeCamera._fit_zoom()` |
+| 37 | 敌方回合与玩家对称；`MOTION` 回发起方枢纽 | `_active_owner`；`_hub_of()`；发射边锁改成 `Array[bool]`（每方一把） |
+| 38 | bot 第一版只做"会还手" | `scripts/enemy_bot.gd`，导出参数只有 `think_sec` / `aim_jitter_deg` |
+| 39 | bot 选目标：**打最弱的、从最远处、用全力** | `enemy_bot.gd` 的 `_weakest()` / `_farthest_from()`，并列按名字定序（红线 #2） |
 
 ## 改动范围（当前实现）
 
@@ -630,6 +721,8 @@ MOTION 会在动画播完之前就满足静止条件。
 | `sences/main.tscn` | 新增 `UI`（CanvasLayer）与 `ShakeCamera`；把 `LifeCycle` / 两个按钮 / 两个坐标标签搬进 `UI`，归属方血量改成 `UI/OwnerHp` 标签 |
 | `scripts/tile_map_layer.gd` | 同步改名后的调试 Label 路径 |
 | `tools/verify.sh` + `tools/probe/` | 新增（2026-10-13）：一键机制验证。`tools/.gdignore` 把探针挡在 Godot 资源树外 |
+| `scripts/enemy_bot.gd` | 新增（2026-10-13）：敌方回合的执行者。**决策，不是规则**，所以不放进 `game_flow` |
+| `sences/main.tscn` | 新增 `EnemyBot` 节点；`GameFlow` 的脚本加了 `class_name`（阶段枚举可被类型化引用） |
 
 > **原文档在这里规划过一整套 `scripts/core/`（契约 / 工具类 / 桥 / 事件队列）。**
 > 2026-10-10 决定按当前规模重新规划：那套服务于事件链、物理闸门、表现时间线，

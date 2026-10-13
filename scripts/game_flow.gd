@@ -1,3 +1,4 @@
+class_name GameFlow
 extends Node
 
 ## 回合阶段机。
@@ -7,7 +8,12 @@ extends Node
 ##   TURN_START ─(停留 1s + 全场静止)→ PLAYER_TURN
 ##   PLAYER_TURN ─┬─(发射)→ MOTION ─(全场静止)→ PLAYER_TURN
 ##                └─(点结束回合 且 全场静止)→ TURN_END
-##   TURN_END ─(停留 1s)→ ENEMY_TURN ─(停留 1s)→ TURN_START
+##   TURN_END ─(停留 1s)→ ENEMY_TURN ─┬─(bot 发射)→ MOTION ─(全场静止)→ ENEMY_TURN
+##                                    └─(bot 收工 且 全场静止)→ TURN_START
+##
+## **`MOTION` 回到"发起方自己的枢纽"**（靠 `_active_owner` 判定），不写死回 PLAYER_TURN ——
+## 这是敌方回合能复用同一套运动/静止/ZOC/冻结机制的前提（2026-10-13）。
+## 规则本来就对称：`_actor` 机制不区分敌我，谁被发射谁就是行动角色。
 ##
 ## 两条来自 design/10-turn/DESIGN.md 的硬规矩：
 ##   · 每物理帧至多推进一条边（红线 #3，用 if 不用 while），防帧内级联自激
@@ -62,10 +68,20 @@ var owner_hp: Array[int] = []
 
 var phase: Phase = Phase.TURN_START
 
-## 发射边锁：TURN_START 打开，发射一次后关闭，到下一个 TURN_START 才重开。
+## 此刻轮到哪一方。`MOTION` 靠它知道该回哪个枢纽；显示层靠它决定画谁的控制域。
+## **在 `_enter` 里由阶段决定**，不是从 `phase` 现算的 —— 因为 `MOTION` 期间"轮到谁"不变，
+## 而 `phase != PLAYER_TURN` 那种写法会把 `MOTION` 误判成敌方回合（ZOC 圈会画错边）。
+var _active_owner := 0
+
+## 发射边锁：**每一位方各自一把**，在自己回合开始时打开，发射一次后关上。
 ## 这是"边上的开关"，不是"剩余次数"计数器 —— 计数器必须在每条路径上记得扣减，
-## 漏一条路径就是一个可被绕过的 bug（设计文档决策 9）。
-var launch_available := false
+## 漏一条路径就是一个可被绕过的 bug（设计文档决策 9）。索引 = `owner_id`。
+##
+## ⚠️ **必须是两把，不能一把。** 玩家出完手之后走的是
+## `PLAYER_TURN → TURN_END → ENEMY_TURN`，**不经过 `TURN_START`** ——
+## 一把锁的话敌方会被玩家那一发锁死，整个敌方回合动不了。
+##（2026-10-13 踩到：探针里 bot 卡在敌方回合 25 秒没动静。）
+var launch_available: Array[bool] = [false, false]
 
 var _end_turn_requested := false
 var _launched_this_phase := false
@@ -174,7 +190,7 @@ func _physics_process(delta: float) -> void:
 	var from := phase
 	_leave(from)
 	phase = next
-	_enter(next)
+	_enter(next, from)
 	phase_changed.emit(from, next)
 
 
@@ -196,7 +212,7 @@ func _poll(delta: float) -> int:
 			# ZOC 分两拍走完：等静止 → 播 zoc（检查）→ 播 attack/be_hit 并结算。
 			# **两拍期间 MOTION 都不结束**，玩家不能趁动画还在播的时候操作（决策 4）。
 			if _zoc_stage == ZocStage.DONE:
-				return Phase.PLAYER_TURN
+				return _hub_of(_active_owner) # 谁发起的就回谁那儿，不写死回 PLAYER_TURN
 			if _zoc_stage == ZocStage.WINDUP:
 				_zoc_timer -= delta
 				if _zoc_timer <= 0.0:
@@ -209,20 +225,44 @@ func _poll(delta: float) -> int:
 			if _dwell >= dwell_sec:
 				return Phase.ENEMY_TURN
 		Phase.ENEMY_TURN:
-			if _dwell >= dwell_sec:
+			# 与 PLAYER_TURN 同构：出手走 MOTION，收工后回 TURN_START。
+			# "收工"由 bot 调 `request_end_turn()` 声明 —— 和玩家按按钮是同一个意愿位。
+			if _launched_this_phase:
+				_launched_this_phase = false
+				return Phase.MOTION
+			if _end_turn_requested and _board_at_rest(delta):
 				return Phase.TURN_START
 	return NO_TRANSITION
 
 
-func _enter(p: Phase) -> void:
+## 某一方的枢纽阶段。`MOTION` 与"轮到谁"都靠它对应。
+func _hub_of(owner: int) -> int:
+	return Phase.PLAYER_TURN if owner == 0 else Phase.ENEMY_TURN
+
+
+## `from` = 从哪个阶段来的。**枢纽阶段会被 `MOTION` 回访**（打完回到发起方的枢纽），
+## 所以要区分"回合开始"和"刚出完手回来" —— 靠 `from != MOTION`。
+func _enter(p: Phase, from: int = NO_TRANSITION) -> void:
 	_dwell = 0.0
 	_rest_frames = 0
 	_rest_wait = 0.0 # 静止等待按阶段各自计时，免得上个阶段的等待算到这个阶段头上
 
 	match p:
 		Phase.TURN_START:
-			launch_available = true # 发射边重新打开
+			launch_available[0] = true # 玩家的边锁：新回合重开
 			_actor = null # 上回合的行动角色作废
+			_active_owner = 0 # 下一个是玩家的回合；显示层照着画控制域
+			# 结束回合的意愿在上一个阶段就被兑现了。玩家那条路会经过 TURN_END（在那儿清），
+			# 敌方那条路是 ENEMY_TURN → TURN_START 直连 —— 不在这儿一并清，它会一路带到下一回合。
+			_end_turn_requested = false
+		Phase.PLAYER_TURN:
+			_active_owner = 0
+		Phase.ENEMY_TURN:
+			_active_owner = 1
+			# **只有"敌方回合开始"才重开它的边锁**。从 MOTION 回来的那次是它自己刚出完手，
+			# 重开会让它一回合打两发 —— 和玩家那边是同一个坑（枢纽会被 MOTION 回访）。
+			if from != Phase.MOTION:
+				launch_available[1] = true
 		Phase.TURN_END:
 			_end_turn_requested = false # 意愿被兑现了，清掉
 
@@ -233,10 +273,11 @@ func _enter(p: Phase) -> void:
 func _leave(p: Phase) -> void:
 	if p == Phase.MOTION:
 		_zoc_stage = ZocStage.NONE # ZOC 表现在 MOTION 内部走完，进来时复位
-	if p == Phase.PLAYER_TURN and _turn_controller != null and is_instance_valid(_turn_controller):
-		# 离开我的回合就清掉选中/蓄力。否则会出现"棋子停在蓄力态、但已经进了敌方回合"
-		# 这种悬挂状态 —— 玩家选中棋子后直接点结束回合时，没有任何东西在动，
-		# 静止闸门会立刻放行。
+	# 离开**任何一方的枢纽**都清掉选中/蓄力。否则会出现"棋子停在蓄力态、但已经进了
+	# 对方回合"这种悬挂状态 —— 玩家选中棋子后直接点结束回合时，没有任何东西在动，
+	# 静止闸门会立刻放行。bot 出手前也会选中它要用的那枚，同样要清。
+	if (p == Phase.PLAYER_TURN or p == Phase.ENEMY_TURN) \
+			and _turn_controller != null and is_instance_valid(_turn_controller):
 		_turn_controller.clear_selection()
 
 
@@ -245,7 +286,31 @@ func _leave(p: Phase) -> void:
 ## 操作许可：只有"我的回合"、本回合还没发射过、**且没有表现在播**，才允许选中/蓄力。
 ## TurnController 每次按下左键前问一句（spec："操作许可由阶段机发放"）。
 func can_operate_pieces() -> bool:
-	return phase == Phase.PLAYER_TURN and launch_available and not is_presenting()
+	return phase == Phase.PLAYER_TURN and launch_available[0] and not is_presenting()
+
+
+## 敌方回合的出手许可。**与玩家共用同一个发射边锁机制**（决策 11：
+## 输入许可统一由阶段机发放）—— bot 不问这套，就绕过了边锁，"每回合一次"立刻失效。
+func can_enemy_launch() -> bool:
+	return phase == Phase.ENEMY_TURN and launch_available[1] and not is_presenting()
+
+
+## 全场是否已停稳。**纯查询，不碰阶段机的去抖计数** —— bot 用它决定"现在能不能出手"，
+## 若直接调 `_board_at_rest(0)` 会把阶段机的 `_rest_frames` / `_rest_wait` 搅乱。
+func board_is_resting() -> bool:
+	for node in _pieces:
+		if not is_instance_valid(node):
+			continue
+		var body := node as RigidBody2D
+		if body != null and _piece_is_moving(body):
+			return false
+	return true
+
+
+## 这一枚在动吗。**"什么算在动"只在这里定义一次**，`_board_at_rest` 与 `board_is_resting` 共用。
+func _piece_is_moving(body: RigidBody2D) -> bool:
+	return body.linear_velocity.length_squared() > rest_lin_speed * rest_lin_speed \
+			or absf(body.angular_velocity) > rest_ang_speed
 
 
 ## 表现是否还在播（碰撞冻结 / 屏幕抖动）。**阶段机与操作许可都靠它放行**（决策 4 的"表现排空"）。
@@ -260,13 +325,13 @@ func is_presenting() -> bool:
 	return _camera != null and is_instance_valid(_camera) and _camera.is_shaking()
 
 
-## 此刻轮到哪一方行动。选择层靠它决定"哪些棋子能点"——归属判定收在这里，
-## 而不是写死在棋子身上（写死会让敌方永远选不中，见 player.gd 的 is_selectable）。
+## 此刻轮到哪一方行动。**显示层靠它来决定画谁的控制域**，选择层靠它决定"哪些棋子能点"
+## —— 归属判定收在这里，而不是写死在棋子身上（写死会让敌方永远选不中，见 player.gd 的 is_selectable）。
 ##
-## 本期敌方回合还是占位，所以只有 PLAYER_TURN 会真的去选棋子；
-## bot 落地后 `ENEMY_TURN` 期间返回 1，敌方棋子就自动变成可选的了。
+## 值是 `_enter` 里按阶段写下的，**不是从 `phase` 现算**：`MOTION` 期间"轮到谁"不变，
+## 而 `phase == PLAYER_TURN ? 0 : 1` 这种写法会把 `MOTION` 判成敌方回合，ZOC 圈会画错边。
 func active_owner_id() -> int:
-	return 0 if phase == Phase.PLAYER_TURN else 1
+	return _active_owner
 
 
 ## 本回合的行动角色（发射出去的那一枚）。NULL 表示本回合还没发射过。
@@ -311,11 +376,10 @@ func unregister_piece(p: Node) -> void:
 	_pieces.erase(p)
 
 
-## 请求结束回合。按钮和 headless 探针都走这里。
-## 只记下意愿、不直接切阶段 —— 真正的切换由 PLAYER_TURN 的完成条件在"全场静止"
-## 满足时执行。这样"任何时候都能点、但静止后才真的走"就自然成立，不需要额外的等待态。
+## 声明"轮到的那一方不再出手了"。**玩家按结束回合按钮、bot 决策完都走这里** ——
+## 同一个意愿位，所以"点了只记下、静止后才真的走"这条对双方自动成立。
 func request_end_turn() -> void:
-	if phase == Phase.PLAYER_TURN or phase == Phase.MOTION:
+	if phase == Phase.PLAYER_TURN or phase == Phase.MOTION or phase == Phase.ENEMY_TURN:
 		_end_turn_requested = true
 
 
@@ -698,7 +762,9 @@ func _exit_tree() -> void:
 # ---------- 内部 ----------
 
 func _on_piece_launched(piece: Node) -> void:
-	launch_available = false # 边锁关上，本回合不能再选任何棋子
+	var body := piece as RigidBody2D
+	if body != null:
+		launch_available[body.owner_id] = false # **只关出手那一方**的边锁，另一方的原样
 	_launched_this_phase = true
 	_actor = piece as Node2D # 它成为本回合的行动角色，只有它能造成伤害
 
@@ -755,7 +821,6 @@ func _update_owner_hp_label() -> void:
 func _board_at_rest(delta: float) -> bool:
 	_rest_wait += delta
 
-	var lin_sq := rest_lin_speed * rest_lin_speed
 	var moving: RigidBody2D = null
 	for node in _pieces:
 		if not is_instance_valid(node):
@@ -763,7 +828,7 @@ func _board_at_rest(delta: float) -> bool:
 		var body := node as RigidBody2D
 		if body == null:
 			continue
-		if body.linear_velocity.length_squared() > lin_sq or absf(body.angular_velocity) > rest_ang_speed:
+		if _piece_is_moving(body):
 			moving = body
 			break
 

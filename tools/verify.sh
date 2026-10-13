@@ -75,6 +75,22 @@ if [[ ! -d "$WORK/.godot" ]]; then
   "$GODOT_BIN" --headless --path "$WORK" --import >/dev/null 2>&1
 fi
 
+# ─── 全局类注册表（`class_name`）──────────────────────────────────────
+# ⚠️ 临时副本里的 `.godot/` 不会自动跟着脚本走：**新增或删掉 `class_name` 之后不重新扫，
+# 探针会以 `Could not find type "Xxx"` 解析失败**，而且看起来像"某个功能没生效"
+#（踩过：加了 `class_name GameFlow` 之后 bot 整个不跑，卡在敌方回合）。
+#
+# 扫一次要 5 秒（在已导入的项目上），所以只在**类的集合真的变了**时才扫 ——
+# 普通改代码不需要，那只影响脚本内容，缓存里本来就只有类名。
+CLASSES="$(grep -h '^class_name ' "$ROOT"/scripts/*.gd 2>/dev/null | awk '{print $2}' | sort | tr '\n' ' ')"
+STAMP_FILE="$ROOT/tmp/.verify-classes"
+if [[ ! -d "$WORK/.godot" || "$CLASSES" != "$(cat "$STAMP_FILE" 2>/dev/null)" ]]; then
+  echo "· 类注册表变了，重新扫一遍脚本（约 5 秒）"
+  "$GODOT_BIN" --headless --path "$WORK" --import >/dev/null 2>&1
+  mkdir -p "$ROOT/tmp"
+  printf '%s' "$CLASSES" >"$STAMP_FILE"
+fi
+
 # ─── 把探针拷进副本 ──────────────────────────────────────────────────
 # 仓库里 `tools/` 被 `.gdignore` 挡在资源树外（编辑器看不见探针）；
 # 在这里拷进 `res://probe/`，Godot 才看得见它们。

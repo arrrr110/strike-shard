@@ -22,7 +22,7 @@ const MAIN := "res://sences/main.tscn"
 ## 不会接着撞到顶壁折返（那会多出一次碰撞，虽然断言仍然成立，但结论不好读）。
 const ARRIVE_SPEED := 200.0
 
-enum St { SETTLE, BOOT, LAYOUT, WAIT_TURN, LAUNCHED, BUTTONS, RESET, DONE }
+enum St { SETTLE, BOOT, LAYOUT, WAIT_TURN, LAUNCHED, BUTTONS, ENEMY_TURN, RESET, DONE }
 
 var _scene: Node = null
 var _flow: Node = null
@@ -54,6 +54,11 @@ var _phase_flips_during_shake := 0
 var _last_phase := -1
 var _resumed_at := -1.0
 var _target_pos_prev := Vector2.ZERO
+
+# 敌方回合（bot）
+var _saw_enemy_turn := false
+var _enemy_pos_before: Dictionary = {}
+var _enemy_moved := 0.0
 
 
 func _initialize() -> void:
@@ -93,6 +98,8 @@ func _process(delta: float) -> bool:
 			_observe()
 		St.BUTTONS:
 			_buttons()
+		St.ENEMY_TURN:
+			_enemy_turn()
 		St.RESET:
 			_reset()
 		St.DONE:
@@ -221,7 +228,7 @@ func _judge() -> void:
 
 
 func _buttons() -> void:
-	print("\n-- 按钮 --")
+	print("\n-- 结束回合 --")
 	var btn: Button = _flow.get("_end_turn_button")
 	if btn == null:
 		_skip("结束回合按钮为空，跳过按钮链路检查")
@@ -229,13 +236,47 @@ func _buttons() -> void:
 		return
 	btn.pressed.emit()
 	_state_at = _now
-	_goto(St.RESET)
+	_goto(St.ENEMY_TURN)
+
+
+## 敌方回合：等 bot 出手，并且等这一回合自己走完回到玩家这边。
+func _enemy_turn() -> void:
+	var phase: int = _flow.phase
+	if not _saw_enemy_turn:
+		if phase != 4: # ENEMY_TURN
+			if _now - _state_at > 10.0:
+				_check(false, "10 秒内没进 ENEMY_TURN（卡在阶段 %d）" % phase)
+				_goto(St.RESET)
+			return
+		_saw_enemy_turn = true
+		print("  进入敌方回合（t=%.3fs）" % _now)
+		for node in get_nodes_in_group(Lib.PIECES_GROUP):
+			if node.owner_id != 0:
+				_enemy_pos_before[node.name] = node.global_position
+		return
+
+	# 记录敌方棋子动了多少 —— bot 真的出手了才会动
+	for node in get_nodes_in_group(Lib.PIECES_GROUP):
+		if node.owner_id != 0 and _enemy_pos_before.has(node.name):
+			_enemy_moved = maxf(_enemy_moved,
+					node.global_position.distance_to(_enemy_pos_before[node.name]))
+
+	if phase == 0 or phase == 1: # 回到 TURN_START / PLAYER_TURN：敌方回合走完了
+		print("  敌方回合结束（t=%.3fs），敌方棋子移动了 %.1f px" % [_now, _enemy_moved])
+		print("\n-- 判定：敌方回合 --")
+		_check(_enemy_moved > 20.0,
+				"bot 真的出了一手（敌方棋子移动 %.1f px）" % _enemy_moved)
+		_check(_flow.can_operate_pieces() or phase == 0,
+				"回合交回玩家手里（阶段 = %d）" % phase)
+		_goto(St.RESET)
+		return
+
+	if _now - _state_at > 25.0:
+		_check(false, "25 秒内敌方回合没走完（卡在阶段 %d）" % phase)
+		_goto(St.RESET)
 
 
 func _reset() -> void:
-	if _now - _state_at < 1.5:
-		return
-	_check(_flow.phase >= 3, "按下结束回合后离开了 PLAYER_TURN（阶段 = %d）" % _flow.phase)
 	var before: int = _target.hp
 	var btn: Button = _flow.get("_reset_button")
 	if btn != null:

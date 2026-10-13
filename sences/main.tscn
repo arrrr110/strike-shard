@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://de16r7d3ar80" path="res://scripts/game_flow.gd" id="5_gameflow"]
 [ext_resource type="Script" uid="uid://bbh225j2yh61u" path="res://scripts/hp_overlay.gd" id="6_hpoverlay"]
 [ext_resource type="Script" path="res://scripts/shake_camera.gd" id="7_shakecam"]
+[ext_resource type="Script" path="res://scripts/enemy_bot.gd" id="8_enemybot"]
 
 [sub_resource type="TileSet" id="TileSet_ig7tw"]
 
@@ -126,6 +127,9 @@ offset_bottom = 448.0
 
 [node name="GameFlow" type="Node" parent="." unique_id=1744399887]
 script = ExtResource("5_gameflow")
+
+[node name="EnemyBot" type="Node" parent="." unique_id=1966291473]
+script = ExtResource("8_enemybot")
 
 [node name="HpOverlay" type="Node2D" parent="." unique_id=2053918702]
 script = ExtResource("6_hpoverlay")
