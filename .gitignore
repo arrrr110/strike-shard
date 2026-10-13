@@ -2,11 +2,9 @@
 .godot/
 /android/
 
-# auto route
-src/route-config.js
-src/route-config.ts
-src/.route-config.js
-docs/
+# 本机私货：各 Agent / 编辑器工具的配置目录不进仓库。
+# 换机器、换人、换 harness 都靠 AGENTS.md 重建，不靠这些目录。
+# （`CLAUDE.md` 不在这个列表里 —— 它在仓库根、跟着仓库走，但只是指向 AGENTS.md 的指针。）
 .agents/
 .agent/
 .claude/
@@ -19,4 +17,6 @@ docs/
 .qwen/
 .opencode/
 .codemaker/
+
+# 验证探针的临时副本与时间戳（见 tools/verify.sh）
 tmp/

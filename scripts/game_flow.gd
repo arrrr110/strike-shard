@@ -84,8 +84,8 @@ var _settled_pairs: Dictionary = {}
 
 ## 碰撞冻结（2026-10-12）。流程：
 ##
-##   撞上 → **冻结物理** → 行动角色播 attack、被撞方播 be_hit
-##        → 等**行动角色的 attack 动画**播完 → 结算伤害 → **解冻** → 物理继续
+##   撞上 → 等冲量落地（见下）→ **冻结物理** → 行动角色播 attack、被撞方播 be_hit
+##        → 等**行动角色的 attack 动画**播完 → 解冻 → **结算伤害（双向）+ 抖一下** → 物理继续
 ##
 ## 为什么能冻：`PhysicsServer2D.set_active(false)` 停的是物理积分，**不停场景树**，
 ## 所以 `_process` 照常跑、动画照常播。实测（本机 4.7.2）：
@@ -97,6 +97,22 @@ var _impact_frozen := false
 var _impact_timer := 0.0
 ## 待结算的碰撞对。同一物理步里撞到两枚会攒成两条，解冻时一起结算。
 var _impact_pending: Array = []
+
+## ⚠️ **冻结必须延后几个物理步才生效**（2026-10-13 实测）。
+##
+## 实测：`body_entered` 回调触发的那一步，只有**撞人的那枚**速度被结算掉，
+## 被撞的那枚要再等两步才拿到速度：
+##
+##   帧 18  行动 v=0    目标 v=0     ← 回调在这一步触发
+##   帧 19  行动 v=0    目标 v=0
+##   帧 20  行动 v=0    目标 v=395   ← 冲量这才落地
+##
+## 在回调里当场 `set_active(false)`，这份冲量就**永久被吞掉**：撞人的停住、被撞的纹丝不动。
+## 低速接近时冲量早就落完了，看不出来；高速接近（蓄力 480、每秒走 6.7 px）时稳定复现 ——
+## 这就是"打完动画之后球没劲"的真凶之一。判断依据见 tools/probe/energy_probe.gd 的 d/e 趟对照。
+const FREEZE_DELAY_STEPS := 3
+var _freeze_delay := 0
+var _freeze_actor: RigidBody2D = null
 
 var _turn_controller: Node = null
 var _phase_label: Label = null
@@ -141,6 +157,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_settled_pairs.clear() # 一次接触开始只结算一次；每物理帧重置（见 _on_piece_bumped）
+	_tick_freeze_delay()   # 冻结的延时生效（必须在表现闸门之前）
 
 	# **表现期间不推进阶段、也不累计停留时间**（见 is_presenting）。
 	# 不拦的话，冻结时动画还在播、阶段就已经翻页了 —— 这正是决策 4 说的"表现排空"。
@@ -389,12 +406,11 @@ func _resolve_collision(a: RigidBody2D, b: RigidBody2D) -> void:
 	# 1. 表现：行动角色挥剑并转向被撞的那一枚，被撞的挨打
 	a.play_attack(b)
 	b.play_be_hit()
-	# 2. 冻住物理，让这一下看得见（同一物理步撞两枚会攒成两条，一起结算）
+	# 2. 记下这一对，等冲量落地之后才冻（同一物理步撞两枚会攒成两条，一起结算）
 	_impact_pending.append([a, b])
-	if not _impact_frozen:
-		_impact_frozen = true
-		_impact_timer = a.attack_windup_sec()
-		PhysicsServer2D.set_active(false)
+	if not _impact_frozen and _freeze_delay <= 0:
+		_freeze_delay = FREEZE_DELAY_STEPS # **不在这里 set_active**，理由见 FREEZE_DELAY_STEPS 的注释
+		_freeze_actor = a
 	# 3. 伤害**不在这里结算** —— 等行动角色的攻击动画播完，见 `_end_freeze()`
 
 
@@ -613,10 +629,24 @@ func _process(delta: float) -> void:
 		_end_freeze()
 
 
+## 冻结的延时生效：数够 `FREEZE_DELAY_STEPS` 个物理步之后才真的拉闸。
+## 计数在 `_physics_process` 里走，所以"步"就是物理步，跟帧率无关。
+func _tick_freeze_delay() -> void:
+	if _freeze_delay <= 0:
+		return
+	_freeze_delay -= 1
+	if _freeze_delay > 0:
+		return
+	_impact_frozen = true
+	_impact_timer = _freeze_actor.attack_windup_sec() if is_instance_valid(_freeze_actor) else 0.2
+	PhysicsServer2D.set_active(false)
+
+
 ## 解冻 + 结算。**先解冻再结算**：结算会改血量、发信号，不该在一个"物理停着"的状态里做。
 func _end_freeze() -> void:
 	_impact_frozen = false
 	_impact_timer = 0.0
+	_freeze_delay = 0 # 延时闸门也要撤，否则解冻之后它还会再冻我一次
 	PhysicsServer2D.set_active(true)
 
 	var pairs := _impact_pending
@@ -655,6 +685,8 @@ func _clear_impact_freeze() -> void:
 		PhysicsServer2D.set_active(true)
 	_impact_frozen = false
 	_impact_timer = 0.0
+	_freeze_delay = 0 # 还没拉闸的延时也要撤，否则重置之后它会把新一局冻住
+	_freeze_actor = null
 	_impact_pending.clear()
 
 

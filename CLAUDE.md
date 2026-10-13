@@ -1,27 +1,16 @@
 # StrikeShard
 
-实验性质的 Godot 游戏项目。
+实验性质的 Godot 回合制战棋：把棋子当台球打出去，靠碰撞与控制域（ZOC）造成伤害。
 
-## 技术栈
+## 项目规矩在 `AGENTS.md`
 
-- Godot 4.7（GDScript）
-- Forward Plus 渲染 + Jolt Physics
-- 规范驱动开发（SDD）：Raven + ravenspec
+**先读 [AGENTS.md](AGENTS.md)** —— 它是唯一事实来源：技术栈、关键约束、分工、
+文档地图、怎么验证（`bash tools/verify.sh`）、熵账本规则、工作流。
 
-## 关键约束（必须遵守）
+本文件不再重复内容：换 Agent 或换工具时只改这里的一行指针，项目知识一个字都不动。
 
-- **离线自包含**：整个开发过程禁止与任何内部代码仓库、内部知识库交互。
-  - 禁止使用 Sourcegraph 内部代码搜索、内部平台/知识库工具。
-  - 代码探索仅限本地项目目录（Grep/Glob/Read 本地文件）。
+## 动手前必读
 
-## 协作方式
-
-Godot 项目 = 文本文件 + 图形化编辑器，分工如下：
-
-- **Agent 负责**：GDScript 逻辑、数据文件、shader、简单 `.tscn`/`.tres`、SDD 全部文本产物（PRD / spec / DESIGN / TASK）。
-- **用户在编辑器负责**：复杂场景可视化搭建、美术资源导入、运行与手感验证。
-- 运行与手感以用户在 Godot 编辑器中的实际行为为准。
-
-## 工作流
-
-用户提需求 → `/sdd-new-change` 起 spec → Agent 写逻辑代码 → 用户编辑器验收 → 反馈迭代。
+- `design/README.md` —— 模块索引，**先看「代码」列**才知道哪些模块真的有代码
+- `design/00-overview/constraints.md` —— 全局约束与**实测出来的引擎事实**
+- 改了 `scripts/` 或 `sences/` → `bash tools/verify.sh`
