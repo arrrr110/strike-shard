@@ -1,0 +1,111 @@
+design/10-turn/DESIGN.md
+  db0786eb9ee00006 433,445-446,448-473,632,640-649,653-682
+design/10-turn/PRD.md
+  db0786eb9ee00006 449
+.gitignore
+  db0786eb9ee00006 5-7,20-22
+tools/probe/probe_lib.gd
+  db0786eb9ee00006 1-102
+tools/probe/energy_probe.gd
+  db0786eb9ee00006 1-265
+tools/probe/mechanism_probe.gd
+  db0786eb9ee00006 1-269
+tools/verify.sh
+  db0786eb9ee00006 1-119
+design/00-overview/constraints.md
+  db0786eb9ee00006 63,65-70
+AGENTS.md
+  db0786eb9ee00006 1-94
+design/TODO.md
+  db0786eb9ee00006 3-12,15-18,20-33,36,38-43
+scripts/game_flow.gd
+  db0786eb9ee00006 87-88,101-115,160,409,411-413,632-644,649,688-689
+design/40-physics/freeze-and-pause.md
+  db0786eb9ee00006 84-92
+CLAUDE.md
+  db0786eb9ee00006 3,5,7-8,10,12,14-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "079761f6fd0f018c20ce4b1d0c5fa5cb05ef1841",
+  "prompts": {
+    "db0786eb9ee00006": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca59ca-1077-45d1-bc12-d73406f5759d",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 1069,
+      "total_deletions": 119,
+      "accepted_lines": 1030,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/10-turn/PRD.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "AGENTS.md": {
+          "additions": 94,
+          "accepted_lines": 94
+        },
+        "CLAUDE.md": {
+          "additions": 9,
+          "deletions": 20,
+          "accepted_lines": 9
+        },
+        ".gitignore": {
+          "additions": 7,
+          "deletions": 7,
+          "accepted_lines": 6
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 71,
+          "deletions": 34,
+          "accepted_lines": 71
+        },
+        "scripts/game_flow.gd": {
+          "additions": 43,
+          "deletions": 11,
+          "accepted_lines": 42
+        },
+        "tools/verify.sh": {
+          "additions": 123,
+          "deletions": 4,
+          "accepted_lines": 119
+        },
+        "tools/probe/mechanism_probe.gd": {
+          "additions": 273,
+          "deletions": 4,
+          "accepted_lines": 269
+        },
+        "tools/probe/energy_probe.gd": {
+          "additions": 294,
+          "deletions": 29,
+          "accepted_lines": 265
+        },
+        "design/TODO.md": {
+          "additions": 36,
+          "deletions": 6,
+          "accepted_lines": 36
+        },
+        "design/40-physics/freeze-and-pause.md": {
+          "additions": 9,
+          "deletions": 3,
+          "accepted_lines": 9
+        },
+        "tools/probe/probe_lib.gd": {
+          "additions": 102,
+          "accepted_lines": 102
+        },
+        "design/00-overview/constraints.md": {
+          "additions": 7,
+          "deletions": 1,
+          "accepted_lines": 7
+        }
+      }
+    }
+  }
+}
