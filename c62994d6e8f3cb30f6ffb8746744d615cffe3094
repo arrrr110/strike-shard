@@ -1,0 +1,42 @@
+AGENTS.md
+  db0786eb9ee00006 85-88
+design/50-presentation/board-and-numbers.md
+  db0786eb9ee00006 1-99
+design/README.md
+  db0786eb9ee00006 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "c62994d6e8f3cb30f6ffb8746744d615cffe3094",
+  "prompts": {
+    "db0786eb9ee00006": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca59ca-1077-45d1-bc12-d73406f5759d",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 104,
+      "total_deletions": 1,
+      "accepted_lines": 104,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/README.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "AGENTS.md": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "design/50-presentation/board-and-numbers.md": {
+          "additions": 99,
+          "accepted_lines": 99
+        }
+      }
+    }
+  }
+}
