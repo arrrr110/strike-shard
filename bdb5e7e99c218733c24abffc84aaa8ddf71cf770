@@ -1,0 +1,43 @@
+scripts/enemy_bot.gd
+  172739ccdb2b3b70 31-36,44,47-59,69-71,208-209
+design/10-turn/PRD.md
+  172739ccdb2b3b70 281,465,507
+design/TODO.md
+  172739ccdb2b3b70 35-53,63-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "bdb5e7e99c218733c24abffc84aaa8ddf71cf770",
+  "prompts": {
+    "172739ccdb2b3b70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f277b2fd-bce1-425f-a8fe-df5b4f3910d0",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 61,
+      "total_deletions": 3,
+      "accepted_lines": 61,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/TODO.md": {
+          "additions": 32,
+          "accepted_lines": 32
+        },
+        "scripts/enemy_bot.gd": {
+          "additions": 26,
+          "deletions": 2,
+          "accepted_lines": 26
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}
