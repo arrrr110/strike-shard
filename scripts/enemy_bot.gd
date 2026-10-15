@@ -28,6 +28,12 @@ extends Node
 
 const PIECES_GROUP := &"pieces"
 
+## 默认随机种子。**改它等于换一局** —— headless 跑批对比要求它固定不变。
+const DEFAULT_RNG_SEED := 20261015
+
+## bot 的私有随机流。种子由 `rng_seed` 注入（见那里的说明）。
+var _rng := RandomNumberGenerator.new()
+
 @export_group("出手前")
 ## 出手前停顿多久（秒）。让玩家看清"敌方在用哪一枚、瞄哪里"。
 ## 0 = 立刻出手，你会只看到一枚球突然飞出去。
@@ -35,8 +41,22 @@ const PIECES_GROUP := &"pieces"
 
 @export_group("准不准")
 ## 瞄准抖动（度）。0 = 百发百中；想给玩家让一手就调它。
-## ⚠️ 非 0 会让每局出手不可复现 —— headless 跑批对比会失去意义。
+## 抖动取自 `rng_seed` 的**伪随机流**，所以开着它也不破坏可复现性 —— 同一颗种子必然抖出同一个角度。
 @export_range(0.0, 30.0, 0.5) var aim_jitter_deg: float = 0.0
+
+@export_group("随机性")
+## bot 的随机种子。**同一颗种子 = 同一串抖动**，跨进程、跨机器一致。
+##
+## 为什么不用全局 `randf_range()`：那颗种子不受项目控制（GDScript 全局 RNG 自带一份
+## 与项目无关的初始状态），两个客户端必然对不上。**棋子的动态必须是伪随机**（2026-10-15 用户定）。
+##
+## 联机时由**权威方下发**这颗种子，两端才能拿到同一手 —— 见 design/TODO.md 的联机条目。
+## 单机下改它等于换一局，是"重开一局看不同走向"的现成旋钮。
+@export var rng_seed: int = DEFAULT_RNG_SEED:
+	set(value):
+		rng_seed = value
+		if _rng != null:
+			_rng.seed = value
 
 var _flow: GameFlow = null
 var _turn: Node = null
@@ -46,6 +66,9 @@ var _last_phase := -1
 
 
 func _ready() -> void:
+	# 显式种一次：`rng_seed` 的 setter 在场景装载时可能已经跑过，这里再种一次是幂等的，
+	# 也保证"哪怕将来有人改了 setter 的触发时机，种子依然是确定的"。
+	_rng.seed = rng_seed
 	_flow = get_tree().get_first_node_in_group(&"game_flow") as GameFlow
 	_turn = get_tree().get_first_node_in_group(&"turn_controller")
 
@@ -182,7 +205,8 @@ func plan_shot(shooter: RigidBody2D, target: RigidBody2D) -> Dictionary:
 
 	var aim: Vector2 = target.global_position
 	if aim_jitter_deg > 0.0:
-		var a := deg_to_rad(randf_range(-aim_jitter_deg, aim_jitter_deg))
+		# 走 bot 自己的伪随机流，不是全局 `randf_range()` —— 理由见 `rng_seed` 的注释。
+		var a := deg_to_rad(_rng.randf_range(-aim_jitter_deg, aim_jitter_deg))
 		aim = shooter.global_position + (aim - shooter.global_position).rotated(a)
 
 	return {"shooter": shooter, "target": target, "aim_at": aim, "charge": charge}
