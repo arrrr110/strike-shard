@@ -1,0 +1,66 @@
+dodge_the_creeps_2d_assets/sprite_pipeline/swift/extract_frames.swift
+  172739ccdb2b3b70 1-69
+dodge_the_creeps_2d_assets/sprite_pipeline/python/pack_spritesheet.py
+  172739ccdb2b3b70 1-258
+dodge_the_creeps_2d_assets/sprite_pipeline/make_spritesheet.sh
+  172739ccdb2b3b70 1-172
+.gitignore
+  172739ccdb2b3b70 26-30
+dodge_the_creeps_2d_assets/sprite_pipeline/swift/cutout_vision.swift
+  172739ccdb2b3b70 1-64
+dodge_the_creeps_2d_assets/sprite_pipeline/.gitignore
+  172739ccdb2b3b70 1-4
+dodge_the_creeps_2d_assets/sprite_pipeline/README.md
+  172739ccdb2b3b70 1-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "af04150123c03140656d9a93c45c81dc067e5c63",
+  "prompts": {
+    "172739ccdb2b3b70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f277b2fd-bce1-425f-a8fe-df5b4f3910d0",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 769,
+      "total_deletions": 3,
+      "accepted_lines": 766,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "dodge_the_creeps_2d_assets/sprite_pipeline/make_spritesheet.sh": {
+          "additions": 175,
+          "deletions": 3,
+          "accepted_lines": 172
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/python/pack_spritesheet.py": {
+          "additions": 258,
+          "accepted_lines": 258
+        },
+        ".gitignore": {
+          "additions": 5,
+          "accepted_lines": 5
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/swift/cutout_vision.swift": {
+          "additions": 64,
+          "accepted_lines": 64
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/.gitignore": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/swift/extract_frames.swift": {
+          "additions": 69,
+          "accepted_lines": 69
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/README.md": {
+          "additions": 194,
+          "accepted_lines": 194
+        }
+      }
+    }
+  }
+}
