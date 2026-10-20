@@ -23,3 +23,9 @@
 
 # 验证探针的临时副本与时间戳（见 tools/verify.sh）
 tmp/
+
+# 风格参考图（情绪板）—— 第三方版权素材，不进仓库、不进构建。
+# `reference/.gdignore` 让 Godot 不导入它们，这里让 git 不提交它们。
+# 只用于看构图/配色/描边/材质，不能当游戏资产用。
+reference/
+reference.zip
