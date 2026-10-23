@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# 2D 角色视频 → 透明背景精灵图（macOS）
+# 2D 角色视频 / 静态立绘 → 透明背景精灵图（macOS）
 #
-# 一条命令跑完：抽帧 → Vision 前景分割 → 去白底污染 → 锚点对齐 → 打包 PNG。
+# 一条命令跑完：抽帧（或读图）→ Vision 前景分割 → 去白底污染 → 锚点对齐 → 打包 PNG。
 #
-#   ./make_spritesheet.sh <video.mp4> [选项]
+#   ./make_spritesheet.sh <video.mp4 | image.png> [选项]
 #
 # 常用：
 #   ./make_spritesheet.sh hero.mp4 --start 3.0 --frames 16
 #   ./make_spritesheet.sh hero.mp4 --frames 8 --cell 256x192 --cols 4
+#   ./make_spritesheet.sh zhangfei_idle.png --cell 320x192
+#
+# 静态图片会强制为单帧（--start / --end / --frames 被忽略）。
 #
 # 依赖（首次运行会自动准备）：
 #   · Xcode Command Line Tools（swiftc）—— macOS 自带 Vision / AVFoundation
@@ -28,6 +31,7 @@ END=""
 CELL="256x192"
 COLS=4
 MARGIN=8
+HEIGHT=0
 FPS=10
 OUT=""
 WORK=""
@@ -37,7 +41,7 @@ DO_PREVIEW=1
 KEEP_WORK=1
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
   cat <<'EOF'
 
 选项：
@@ -47,6 +51,7 @@ usage() {
   --cell <WxH>        单元格尺寸，默认 256x192
   --cols <N>          列数，默认 4（行数自动 = ceil(frames/cols)）
   --margin <px>       安全边距，默认 8
+  --height <px>       强制内容框高度（跨状态统一角色大小）；0 = 自动
   --fps <N>           GIF 预览帧率，默认 10
   --out <path>        输出 PNG，默认 <视频目录>/<视频名>_spritesheet_<N>f.png
   --work <dir>        中间帧目录，默认在临时目录
@@ -68,6 +73,7 @@ while [[ $# -gt 0 ]]; do
     --cell) CELL="$2"; shift 2 ;;
     --cols) COLS="$2"; shift 2 ;;
     --margin) MARGIN="$2"; shift 2 ;;
+    --height) HEIGHT="$2"; shift 2 ;;
     --fps) FPS="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     --work) WORK="$2"; shift 2 ;;
@@ -82,7 +88,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$VIDEO" ]] || { usage; exit 2; }
-[[ -f "$VIDEO" ]] || die "找不到视频：$VIDEO"
+[[ -f "$VIDEO" ]] || die "找不到输入文件：$VIDEO"
+
+# 静态图片 or 视频？
+ext="$(printf '%s' "${VIDEO##*.}" | tr '[:upper:]' '[:lower:]')"
+case "$ext" in
+  png|jpg|jpeg|webp) STATIC=1 ;;
+  *) STATIC=0 ;;
+esac
+if (( STATIC == 1 )); then
+  FRAMES=1
+  DO_GIF=0   # 单帧没有动效，不生成 GIF
+fi
+
 [[ "$FRAMES" =~ ^[0-9]+$ ]] && (( FRAMES > 0 )) || die "--frames 必须是正整数"
 [[ "$CELL" =~ ^[0-9]+x[0-9]+$ ]] || die "--cell 格式应为 256x192"
 
@@ -111,13 +129,17 @@ if ! "$PY" -c "import PIL, numpy" >/dev/null 2>&1; then
 fi
 
 # ---- 路径与时间范围 ----
-if [[ -z "$END" ]]; then
+if (( STATIC == 0 )) && [[ -z "$END" ]]; then
   END="$("$BIN/extract_frames" --duration "$VIDEO")"
 fi
 if [[ -z "$OUT" ]]; then
   dir="$(cd "$(dirname "$VIDEO")" && pwd)"
   base="$(basename "${VIDEO%.*}")"
-  OUT="$dir/${base}_spritesheet_${FRAMES}f.png"
+  if (( STATIC == 1 )); then
+    OUT="$dir/${base}_sprite.png"
+  else
+    OUT="$dir/${base}_spritesheet_${FRAMES}f.png"
+  fi
 fi
 OUT_DIR="$(cd "$(dirname "$OUT")" && pwd)"
 OUT="$OUT_DIR/$(basename "$OUT")"
@@ -128,9 +150,14 @@ fi
 mkdir -p "$WORK/raw" "$WORK/cut"
 echo "工作目录：$WORK"
 
-# ---- 1. 抽帧 ----
-echo "抽帧：${START}s → ${END}s，共 ${FRAMES} 帧"
-"$BIN/extract_frames" "$VIDEO" "$WORK/raw" "$START" "$END" "$FRAMES"
+# ---- 1. 抽帧 / 读图 ----
+if (( STATIC == 1 )); then
+  echo "静态图片模式：单帧"
+  cp "$VIDEO" "$WORK/raw/f_00.png"
+else
+  echo "抽帧：${START}s → ${END}s，共 ${FRAMES} 帧"
+  "$BIN/extract_frames" "$VIDEO" "$WORK/raw" "$START" "$END" "$FRAMES"
+fi
 
 # ---- 2. 前景分割 ----
 echo "前景分割…"
@@ -152,6 +179,9 @@ PACK_ARGS=(
   --margin "$MARGIN"
   --fps "$FPS"
 )
+if (( HEIGHT > 0 )); then
+  PACK_ARGS+=(--height "$HEIGHT")
+fi
 if (( DO_GIF == 1 )); then
   PACK_ARGS+=(--gif "${OUT%.png}.gif")
 fi

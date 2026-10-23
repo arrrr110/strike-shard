@@ -111,6 +111,12 @@ def main() -> int:
     ap.add_argument("--cell", type=parse_cell, default=(256, 192), help="单元格 WxH，默认 256x192")
     ap.add_argument("--cols", type=int, default=4, help="列数，默认 4")
     ap.add_argument("--margin", type=int, default=8, help="安全边距（像素），默认 8")
+    ap.add_argument(
+        "--height",
+        type=int,
+        default=0,
+        help="强制内容框高度（像素），用于跨状态统一角色大小；0 = 自动按格子适配",
+    )
     ap.add_argument("--fps", type=float, default=10.0, help="GIF 预览帧率，默认 10")
     ap.add_argument("--gif", default=None, help="GIF 预览输出路径（可选）")
     ap.add_argument("--preview", default=None, help="深色背景预览 PNG（可选）")
@@ -156,10 +162,24 @@ def main() -> int:
     crop_y1 = max(f[4] for f in frames) + args.margin
     crop_w, crop_h = crop_x1 - crop_x0, crop_y1 - crop_y0
 
-    scale = min((cell_w - 2 * args.margin) / crop_w, (cell_h - 2 * args.margin) / crop_h)
+    if args.height > 0:
+        # 跨状态统一：按内容框高度反推缩放，而不是按格子自动适配。
+        # 不同姿势的武器伸展不同，自动适配会让角色忽大忽小。
+        scale = args.height / crop_h
+    else:
+        scale = min((cell_w - 2 * args.margin) / crop_w, (cell_h - 2 * args.margin) / crop_h)
     out_w, out_h = round(crop_w * scale), round(crop_h * scale)
 
-    cols = max(1, args.cols)
+    safe_w, safe_h = cell_w - 2 * args.margin, cell_h - 2 * args.margin
+    if out_w > safe_w or out_h > safe_h:
+        print(
+            f"错误：--height {args.height} 让内容变成 {out_w}x{out_h}，"
+            f"超出安全区 {safe_w}x{safe_h}。换更大的 --cell 或更小的 --height。",
+            file=sys.stderr,
+        )
+        return 2
+
+    cols = max(1, min(args.cols, len(frames)))   # 不能多于帧数，否则会多出空格子
     rows = math.ceil(len(frames) / cols)
     sheet = Image.new("RGBA", (cols * cell_w, rows * cell_h), (0, 0, 0, 0))
 
