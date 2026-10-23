@@ -1,0 +1,44 @@
+dodge_the_creeps_2d_assets/sprite_pipeline/python/pack_spritesheet.py
+  172739ccdb2b3b70 114-119,165-170,173-180,182
+dodge_the_creeps_2d_assets/sprite_pipeline/make_spritesheet.sh
+  172739ccdb2b3b70 2,4,6,11-13,34,44,54,76,91-103,132,138-142,153-160,182-184
+dodge_the_creeps_2d_assets/sprite_pipeline/README.md
+  172739ccdb2b3b70 1,3,5,21-26,40-41,46-48,52,63-64,71-80,82-105,187,226-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "72f5736c52120187f30451a5ddfcb770e61cfbd3",
+  "prompts": {
+    "172739ccdb2b3b70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f277b2fd-bce1-425f-a8fe-df5b4f3910d0",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 143,
+      "total_deletions": 28,
+      "accepted_lines": 135,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "dodge_the_creeps_2d_assets/sprite_pipeline/make_spritesheet.sh": {
+          "additions": 40,
+          "deletions": 10,
+          "accepted_lines": 40
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/README.md": {
+          "additions": 81,
+          "deletions": 16,
+          "accepted_lines": 73
+        },
+        "dodge_the_creeps_2d_assets/sprite_pipeline/python/pack_spritesheet.py": {
+          "additions": 22,
+          "deletions": 2,
+          "accepted_lines": 22
+        }
+      }
+    }
+  }
+}
