@@ -1,0 +1,107 @@
+design/35-skill/PRD.md
+  bd1a5f348479682c 1-390
+design/30-card/PRD.md
+  bd1a5f348479682c 4,7,35-45
+design/35-skill/DESIGN.md
+  bd1a5f348479682c 1-334
+design/10-turn/PRD.md
+  bd1a5f348479682c 4-5,22,26-27,73-93,174,177-178,195-203,212-229,258-260,328,370-377,395-397,443-447,472,474-475,499,507,509-510,525-531,540-550,583-586
+design/10-turn/DESIGN.md
+  bd1a5f348479682c 3,5,14,208,217-221,273-277,289,291-311,357,359,361,634-636,879-883,958-959,963-964,1074,1089-1092
+design/90-todo/character-mounted-skills.md
+  bd1a5f348479682c 1,3-5,7,13,15,19-20,23-45
+design/README.md
+  bd1a5f348479682c 4,11-14,17,19,21-23
+design/TODO.md
+  bd1a5f348479682c 29-36,57-70
+AGENTS.md
+  bd1a5f348479682c 43
+design/00-overview/glossary.md
+  bd1a5f348479682c 3,14-19,32,34-36,40,59,64-65,67-85,101-102,104-106,108-111
+design/50-presentation/board-and-numbers.md
+  bd1a5f348479682c 48-51
+design/20-character/PRD.md
+  bd1a5f348479682c 3-5,8-17,30,47-50,52-55,57-58,60-63,96-97,103-105,109,111-129,163,202,205,207-212,225-235,238-248,254-256,258-259,264-273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "1078a9098aee205418aa3a8cb17d31d3b4845e87",
+  "prompts": {
+    "bd1a5f348479682c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf3b0ecb-8809-4c6a-952c-a06ff5822ac0",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 1539,
+      "total_deletions": 559,
+      "accepted_lines": 1115,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/35-skill/PRD.md": {
+          "additions": 506,
+          "deletions": 116,
+          "accepted_lines": 390
+        },
+        "AGENTS.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 187,
+          "deletions": 108,
+          "accepted_lines": 106
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 104,
+          "deletions": 64,
+          "accepted_lines": 57
+        },
+        "design/30-card/PRD.md": {
+          "additions": 13,
+          "deletions": 2,
+          "accepted_lines": 13
+        },
+        "design/20-character/PRD.md": {
+          "additions": 184,
+          "deletions": 113,
+          "accepted_lines": 101
+        },
+        "design/35-skill/DESIGN.md": {
+          "additions": 393,
+          "deletions": 59,
+          "accepted_lines": 334
+        },
+        "design/50-presentation/board-and-numbers.md": {
+          "additions": 7,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "design/90-todo/character-mounted-skills.md": {
+          "additions": 34,
+          "deletions": 31,
+          "accepted_lines": 33
+        },
+        "design/00-overview/glossary.md": {
+          "additions": 71,
+          "deletions": 41,
+          "accepted_lines": 44
+        },
+        "design/TODO.md": {
+          "additions": 25,
+          "deletions": 8,
+          "accepted_lines": 22
+        },
+        "design/README.md": {
+          "additions": 14,
+          "deletions": 12,
+          "accepted_lines": 10
+        }
+      }
+    }
+  }
+}
