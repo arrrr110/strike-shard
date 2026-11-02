@@ -40,7 +40,7 @@ Godot 项目 = 文本文件 + 图形化编辑器：
 | `design/README.md` | 模块索引 + 文档约定 + 冲突处理。**先读这个** |
 | `design/00-overview/constraints.md` | 全局约束、性能红线、**实测出来的引擎事实**。动手前必读 |
 | `design/10-turn/` | 回合机制（PRD 写要什么、DESIGN 写怎么做）。**当前唯一大面积实现的模块** |
-| `design/20-character/`、`30-card/`、`40-physics/`、`50-presentation/` | 其余模块 |
+| `design/20-character/`、`30-card/`、`35-skill/`、`40-physics/`、`50-presentation/` | 其余模块（`35-skill` = 技能系统，**未实现**） |
 | `design/00-overview/glossary.md` | 术语表（"结算 / 表现 / 事件"有严格定义，别混用） |
 | `design/TODO.md` | **熵账本**，规则见下 |
 
