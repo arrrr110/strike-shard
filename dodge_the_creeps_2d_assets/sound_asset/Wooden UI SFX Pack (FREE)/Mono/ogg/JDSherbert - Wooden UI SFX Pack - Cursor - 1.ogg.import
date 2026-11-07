@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cq6mf8cu55nf0"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cursor - 1.ogg-49c3fc48ca90a0f4b7d3a1a23581a83d.oggvorbisstr"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Mono/ogg/JDSherbert - Wooden UI SFX Pack - Cursor - 1.ogg"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cursor - 1.ogg-49c3fc48ca90a0f4b7d3a1a23581a83d.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

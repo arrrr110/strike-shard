@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d1gl8fb7lj03"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Paper Flip - 1.mp3-c00b51bab5aa60d217d8d52122461276.mp3str"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Stereo/mp3/JDSherbert - Tabletop Games SFX Pack - Paper Flip - 1.mp3"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Paper Flip - 1.mp3-c00b51bab5aa60d217d8d52122461276.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

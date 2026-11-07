@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://spt55qntxfa8"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 1.wav-e0a9cd5e8af886d4f8caf172a4b3c04b.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Mono/wav (HD)/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 1.wav"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 1.wav-e0a9cd5e8af886d4f8caf172a4b3c04b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

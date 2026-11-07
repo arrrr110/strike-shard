@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://o5mu264j15qi"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Dice Pickup - 1.wav-aaf0cb2ca910a39c8b12744873043494.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Mono/wav (SD)/JDSherbert - Tabletop Games SFX Pack - Dice Pickup - 1.wav"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Dice Pickup - 1.wav-aaf0cb2ca910a39c8b12744873043494.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

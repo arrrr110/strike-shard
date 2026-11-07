@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c6kv2y0c6h6qg"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 1.ogg-8ad9f2f7ee35adcb81c118fdf494cff1.oggvorbisstr"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Mono/ogg/JDSherbert - Wooden UI SFX Pack - Cancel - 1.ogg"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 1.ogg-8ad9f2f7ee35adcb81c118fdf494cff1.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

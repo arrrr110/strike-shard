@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dtp5oms500pvf"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Error - 1.wav-d308b0d23ec614656ee88c81ec8dc4a1.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Stereo/wav (HD)/JDSherbert - Wooden UI SFX Pack - Error - 1.wav"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Error - 1.wav-d308b0d23ec614656ee88c81ec8dc4a1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

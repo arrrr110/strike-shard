@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bdv7rbqjym1qt"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.wav-bb649a4f21ae8db25f35494674096b7f.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Stereo/wav (HD)/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.wav"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.wav-bb649a4f21ae8db25f35494674096b7f.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

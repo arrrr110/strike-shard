@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://v8ca76d6ypf3"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 2.ogg-9af778cbdb7f2b4f78f8e11a8c7bedf1.oggvorbisstr"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Mono/ogg/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 2.ogg"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Deal - 2.ogg-9af778cbdb7f2b4f78f8e11a8c7bedf1.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

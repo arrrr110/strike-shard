@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cbi8uinbbfq3l"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 2.wav-f2ad008f2043ea2eba0fea3c33c0bb95.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Stereo/wav (HD)/JDSherbert - Wooden UI SFX Pack - Cancel - 2.wav"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 2.wav-f2ad008f2043ea2eba0fea3c33c0bb95.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

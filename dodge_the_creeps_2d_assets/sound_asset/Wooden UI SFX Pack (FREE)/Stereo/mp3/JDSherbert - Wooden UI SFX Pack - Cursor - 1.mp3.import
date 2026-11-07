@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://byllxgop8ppve"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cursor - 1.mp3-0ca192d8ff8c0494772486d3e4cd50c3.mp3str"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Stereo/mp3/JDSherbert - Wooden UI SFX Pack - Cursor - 1.mp3"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cursor - 1.mp3-0ca192d8ff8c0494772486d3e4cd50c3.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

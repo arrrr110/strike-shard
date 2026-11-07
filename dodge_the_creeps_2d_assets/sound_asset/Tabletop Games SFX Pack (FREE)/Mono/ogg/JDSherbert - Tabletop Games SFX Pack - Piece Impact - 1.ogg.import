@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c15b7hgth6qhd"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.ogg-bea1bfb686622f90363db259ea396a2a.oggvorbisstr"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Mono/ogg/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.ogg"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Impact - 1.ogg-bea1bfb686622f90363db259ea396a2a.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

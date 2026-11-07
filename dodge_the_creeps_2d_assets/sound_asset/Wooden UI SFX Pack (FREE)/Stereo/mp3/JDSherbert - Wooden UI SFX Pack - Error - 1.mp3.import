@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://eon3xis4o5nh"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Error - 1.mp3-10c647d9fb6cc111546b0bf7fa6e384a.mp3str"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Stereo/mp3/JDSherbert - Wooden UI SFX Pack - Error - 1.mp3"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Error - 1.mp3-10c647d9fb6cc111546b0bf7fa6e384a.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

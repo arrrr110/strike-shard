@@ -324,7 +324,103 @@ func execute(_ctx: SkillContext) -> Array[GameEvent]: ...
 | 技能顺序不确定 | 高（回放/联机不一致） | 显式排序键；禁止依赖字典/节点/回调顺序 |
 | 技能状态存节点引用 | 中（联机/回放失效） | 稳定 id；`snapshot()` 校验 |
 
-## 11. 修订记录
+## 11. 实现架构（第一切片）
+
+> 目标：用最小代码验证技能契约，不一次铺开 #2/#4/#6。
+> 第一切片 = **技能契约 + #1 立即增益 + #3 受击只掉 1 + #5 能量护盾
+> + 归属方攻击力累积 + 双方 `TURN_END` 结算**。
+
+### 11.1 文件落点
+
+| 文件 | 职责 |
+| --- | --- |
+| `scripts/skills/skill.gd` | `Skill` 契约基类；`State` 枚举；hooks / bind / unbind |
+| `scripts/skills/skill_runtime.gd` | 注册表、挂载/卸载、hook 派发、排序 |
+| `scripts/skills/skill_context.gd` | 宿主/owner/查询/事件出口 |
+| `scripts/skills/game_event.gd` | 最小事件载体（type / source / targets / payload / cause） |
+| `scripts/skills/impl/buff_skill.gd` | #1 立即增益 |
+| `scripts/skills/impl/damage_cap_skill.gd` | #3 受击只掉 1 |
+| `scripts/skills/impl/energy_shield_skill.gd` | #5 能量护盾 |
+| `scripts/battle_log.gd` | 事件日志：headless 断言 + 玩家战报的雏形 |
+
+> 先不建 `scripts/core/` 三桶。`GameEvent` 暂放 `scripts/skills/`，等事件队列/表现时间线
+> 真落地时再移动到核心；第一切片不为它铺空架构。
+
+### 11.2 契约
+
+复用本文第 2 节的 `Skill` 草图，第一切片只实现这些：
+
+```gdscript
+class_name Skill extends RefCounted
+enum State { ARMED, ACTIVE, EXPIRED }
+
+func hooks() -> PackedStringArray: return []
+func bind(_ctx: SkillContext) -> void: pass
+func unbind(_ctx: SkillContext) -> void: pass
+func on_hook(_hook: StringName, _event: GameEvent, _ctx: SkillContext) -> Array[GameEvent]:
+	return []
+func snapshot() -> Dictionary: return {}
+func restore(_data: Dictionary) -> void: pass
+```
+
+- `SkillRuntime` 由 `GameFlow` 持有（不是 autoload）；`mount(host, skill)` 登记实例。
+- `SkillContext` 暴露 `host_id` / `owner_id` / 查询 / `emit`；技能不持有 `Node`。
+- 排序：`priority → card_index → mount_seq`。
+- **技能只返回事件/修正**，不直接写 `hp` / `atk` / 速度。
+- 第一切片先**同步派发**，不引入完整事件队列/时间线；等表现时间线落地再换队列，
+  技能侧契约不变。
+
+### 11.3 `game_flow` 接缝
+
+| 位置 | 变更 |
+| --- | --- |
+| `_on_piece_bumped` | 先发 `collision_fact`（去重后），再判断伤害资格；#5 听事实层 |
+| `_apply_damage_to` | 先问 `runtime.modify_damage(intent)`（#3/#5），再落血；`hp == 0` 时把伤害加到**攻击方归属方**的 `owner_attack_power`；造成失能那一下超出部分丢弃 |
+| `_end_freeze` | 保持现有解冻/结算节奏；技能激活/结算按 35-skill 的顺序接入 |
+| `_enter(TURN_END)` + 敌方回合结束 | 先结算回合结束技能，**最后**双方各自结算 `owner_attack_power`；同时归零 = 平局 |
+| `play_card` / `load_card` | 手动激活 / 挂载技能；第一切片先加一个调试入口 |
+| `player.gd` | `mounted_skills` 列表 + 稳定宿主 id；全局技能重排时复用 `reset_to_home` |
+
+> **敌方回合结束钩子**是第一切片的一部分：当前 `ENEMY_TURN` 直接回 `TURN_START`，
+> 若不补这个钩子，「每回合末」会漏掉敌方回合。
+
+### 11.4 第一切片行为
+
+- **#1**：手动激活 → 改 `atk` / `hp` → `skill_triggered` + `stat_changed` 事件。
+- **#3**：碰撞伤害意图 → 总伤害钳到 1 → `damage_modified`；失能后关闭。
+- **#5**：敌方棋子碰撞事实 +1 层；3 层后护盾待发；下一次伤害意图取消 →
+  `damage_prevented`；层数清零。
+- **归属方攻击力**：敌方打失能角色的伤害计入攻击方 `owner_attack_power`；
+  `TURN_END` 最后双方各自把攻击力打到对方，随后清零。
+- **日志**：`BattleLog` 收集事件；headless 断言事件序列与 HP。
+
+### 11.5 明确不做
+
+- 完整事件队列 / 表现时间线：先同步派发。
+- #2（碰撞后停止）、#4（延迟治疗）、#6（乱斗）。
+- 隐藏技能 / 战争迷雾：棋盘全可见，只有手牌隐藏。
+- 复活 / 全局技能特殊类。
+- 完整的卡牌系统：只用 `load_card` / `play_card` 的调试入口挂载/激活。
+
+### 11.6 测试
+
+- `--headless --fixed-fps 60` 探针：
+  - #1 数值与事件；
+  - #3 伤害钳制、失能后关闭；
+  - #5 三层、待发、免疫、清零；
+  - 失能伤害 → 攻击方 `owner_attack_power`；造成失能那一下不计入；
+  - `TURN_END` 双方各打各的；10 vs 4 → 敌方 -10、我方 -4；同时归零 = 平局；
+  - 攻击力清零；敌方回合结束也结算。
+- 改 `scripts/` 后跑 `bash tools/verify.sh`。
+
+### 11.7 第一切片先用的默认口径
+
+- **#3**：只钳碰撞伤害，不钳 ZOC（当前默认）。
+- **#5**：只统计与敌方棋子的碰撞，墙壁/友方不充能（当前默认）。
+- **#1**：增益持续到对局结束；加 `max_hp` 时同步加当前 `hp`（当前默认）。
+- 这三条都是内容参数，不阻塞契约与运行时；实测后可再调。
+
+## 12. 修订记录
 
 | 日期 | 变更 | 原因 |
 | --- | --- | --- |
@@ -332,3 +428,4 @@ func execute(_ctx: SkillContext) -> Array[GameEvent]: ...
 | 2026-11-02（补充） | 把「无溢出」改为**失能伤害延迟池**：owner 级累计、`TURN_END` 汇总扣血；失能角色仍可被碰撞/围攻、不提供 ZOC；补敌方回合结束钩子与池的测试/风险 | 用户澄清：失能期间的伤害每回合末汇总给归属方，不是丢弃，也不是只由技能扣 |
 | 2026-11-02（最终口径） | 改为**归属方头像攻击力**：对敌方失能角色的伤害记入**攻击方归属方**的一次性攻击力；`TURN_END` 双方各自把攻击力打到对方归属方，**各打各的、不抵消**，随后清零 | 用户明确攻击力归攻击方头像；10 vs 4 → 敌方 -10、我方 -4 |
 | 2026-11-02（定稿补充） | 攻击力只是结算形式/表演；归属方结算放在 `TURN_END` 的**最后**；同时归零 = 平局；失能 = 赛点；棋盘可见、只有手牌不可见 | 用户确认四条收口规则 |
+| 2026-11-02（实现架构） | 补第一切片：文件落点、`Skill`/`GameEvent` 契约、`game_flow` 接缝、#1/#3/#5、归属方攻击力累积与双方 `TURN_END` 结算；明确不做 #2/#4/#6 | 让契约先落代码，而不是继续加规则 |

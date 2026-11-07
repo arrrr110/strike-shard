@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://boyucb2yb6h1e"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Shuffle - 2.ogg-596e56d329b0cf86cc057c21fff27acd.oggvorbisstr"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Stereo/ogg/JDSherbert - Tabletop Games SFX Pack - Deck Shuffle - 2.ogg"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Deck Shuffle - 2.ogg-596e56d329b0cf86cc057c21fff27acd.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

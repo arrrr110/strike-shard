@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b2y2h1d5r7hhg"
+path="res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Move - 2.wav-de403ff7b3d5c1444feebe67bc8b1db7.sample"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Tabletop Games SFX Pack (FREE)/Stereo/wav (HD)/JDSherbert - Tabletop Games SFX Pack - Piece Move - 2.wav"
+dest_files=["res://.godot/imported/JDSherbert - Tabletop Games SFX Pack - Piece Move - 2.wav-de403ff7b3d5c1444feebe67bc8b1db7.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

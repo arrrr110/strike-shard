@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://doqtoy12rlcoq"
+path="res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 2.mp3-d704c1554c35f1f98b14ed69f721b5f7.mp3str"
+
+[deps]
+
+source_file="res://dodge_the_creeps_2d_assets/sound_asset/Wooden UI SFX Pack (FREE)/Mono/mp3/JDSherbert - Wooden UI SFX Pack - Cancel - 2.mp3"
+dest_files=["res://.godot/imported/JDSherbert - Wooden UI SFX Pack - Cancel - 2.mp3-d704c1554c35f1f98b14ed69f721b5f7.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
