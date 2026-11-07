@@ -1,0 +1,42 @@
+design/35-skill/PRD.md
+  bd1a5f348479682c 367-369
+design/TODO.md
+  bd1a5f348479682c 70-71
+design/35-skill/DESIGN.md
+  bd1a5f348479682c 327-423,431
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e518e3864c738bd871864d6497fa0985e2232e49",
+  "prompts": {
+    "bd1a5f348479682c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf3b0ecb-8809-4c6a-952c-a06ff5822ac0",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 103,
+      "total_deletions": 1,
+      "accepted_lines": 103,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/35-skill/PRD.md": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "design/35-skill/DESIGN.md": {
+          "additions": 98,
+          "deletions": 1,
+          "accepted_lines": 98
+        },
+        "design/TODO.md": {
+          "additions": 2,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}
