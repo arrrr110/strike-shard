@@ -1,0 +1,92 @@
+design/00-overview/constraints.md
+  d6dabca23fb398ed 25-29,48,54,59,110,113,117-119
+design/TODO.md
+  d6dabca23fb398ed 24-26,91,98-101,104-112
+scripts/turn_controller.gd
+  d6dabca23fb398ed 3,18-43,47,49-50,52,56-57,74-83,85,88,90-145,147-154,157-158,161,164-166,169-171,173-174,184-191,193-196,198,200,205-206,208-209,234,239
+scripts/enemy_bot.gd
+  d6dabca23fb398ed 24,120-122,124
+design/10-turn/DESIGN.md
+  d6dabca23fb398ed 28-35,39,43,45,53-55,179,181-198,202-226,229-232,234-236,238,284,286-294,296-324,326-327,329,349,601,620-621,678,698,700-704,789,817-818,831-834,871-873
+scripts/player.gd
+  d6dabca23fb398ed 32-33,59-60,62-70,72,100-106,133,146-169,175,177-180,207-213,215,223,264-267,269-272,395,399-401,403-406,408-409,411-426,429-448,452-457,459,462,467-474,476-482,486-540,542-575,577-596,598-618
+scripts/game_flow.gd
+  d6dabca23fb398ed 160-162,172-175,778-798,804-810
+tools/probe/probe_lib.gd
+  d6dabca23fb398ed 80-85,87
+sences/main.tscn
+  d6dabca23fb398ed 81
+design/10-turn/PRD.md
+  d6dabca23fb398ed 122-123,125-136,141-148,151,153,156,160-166,182,359-361,399-406,434-437,439,522-525,551,607-608
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "8f6f8ec2b4a41d31bb259dbdb58fe09f500b9b81",
+  "prompts": {
+    "d6dabca23fb398ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "736e2c1c-b0d1-4cb5-ab2e-14c0f2f2271d",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 733,
+      "total_deletions": 269,
+      "accepted_lines": 688,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "scripts/player.gd": {
+          "additions": 316,
+          "deletions": 121,
+          "accepted_lines": 278
+        },
+        "scripts/enemy_bot.gd": {
+          "additions": 5,
+          "deletions": 4,
+          "accepted_lines": 5
+        },
+        "tools/probe/probe_lib.gd": {
+          "additions": 7,
+          "deletions": 10,
+          "accepted_lines": 7
+        },
+        "design/10-turn/PRD.md": {
+          "additions": 58,
+          "deletions": 36,
+          "accepted_lines": 56
+        },
+        "design/00-overview/constraints.md": {
+          "additions": 13,
+          "deletions": 5,
+          "accepted_lines": 13
+        },
+        "design/TODO.md": {
+          "additions": 17,
+          "deletions": 2,
+          "accepted_lines": 17
+        },
+        "sences/main.tscn": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "scripts/turn_controller.gd": {
+          "additions": 148,
+          "deletions": 43,
+          "accepted_lines": 144
+        },
+        "design/10-turn/DESIGN.md": {
+          "additions": 133,
+          "deletions": 47,
+          "accepted_lines": 132
+        },
+        "scripts/game_flow.gd": {
+          "additions": 35,
+          "deletions": 1,
+          "accepted_lines": 35
+        }
+      }
+    }
+  }
+}
