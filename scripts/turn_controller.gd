@@ -1,6 +1,6 @@
 extends Node2D
 
-## 棋盘级选择协调：全盘至多一枚棋子处于选中态，鼠标输入也由这里统一解释。
+## 棋盘级选择协调 + 瞄准状态机：全盘至多一枚棋子处于选中态，鼠标点击也由这里统一解释。
 ##
 ## 为什么选择权不放在棋子自己身上：如果每枚棋子各自在 _input 里抢选中，裁决结果就取决于
 ## Godot 派发 _input 的节点树序 —— 那正是 design/10-turn/DESIGN.md 结构性红线 #2
@@ -15,16 +15,46 @@ extends Node2D
 ##（副作用：相机抖动时鼠标的世界坐标也跟着偏。抖动的表现闸门因此也拦操作许可，
 ##  见 game_flow.gd 的 is_presenting()。）
 ##
-## 后续接回合阶段机时，"此刻是否允许选中/蓄力"就在这里裁决（对应 spec 的
-## "操作许可由阶段机发放"）。棋子只提供能力，不自己判断。
+## ── 四态瞄准（2026-11-08 改版） ─────────────────────────────────────
+##
+##   未选中 NONE
+##     └─左键点本方棋子→ 调整 ADJUST（鼠标**不按下**：移动即改角度/力度）
+##          ├─左键（任意地图位置，力度>0）→ 就绪 READY（角度/力度冻结）
+##          └─右键→ NONE
+##   就绪 READY
+##     ├─左键圈外→ 角度 ANGLE（整机随鼠标转；**角度 = 棋子→鼠标延长线，直接指向目标**）
+##     ├─左键圈内→ ADJUST（按当前鼠标重新取力）
+##     └─右键→ ADJUST
+##   角度 ANGLE
+##     ├─左键圈外→ READY
+##     ├─左键圈内→ ADJUST
+##     └─右键→ READY
+##
+## **方向语义分两套**（2026-11-10 修正）：ADJUST 是弹弓逻辑，鼠标在扳机端，
+## 发射 = 鼠标→棋子的反向延长线；ANGLE 是直接瞄准，发射 = 棋子→鼠标的延长线。
+## 两者由 `player.gd` 的 `aim_point_mode` 区分，不要复用同一个取角公式。
+##
+## **按下才锁定，松手不发射。** 发射只从 GameFlow 的合并按钮走（就绪/角度两态，
+## 按钮文字变成「发射」），见 `try_launch()`。其余状态同一个按钮只是空过。
+##
+## 棋盘边界不再是输入边界：鼠标可以离开棋盘，大圈也会画到棋盘外。
+## 旧规则「鼠标出棋盘暂停蓄力」已删除；鼠标的硬边界是窗口。
+##
+## 右键是一级一级退，不是清空：ANGLE → READY → ADJUST → NONE。
 
 const PIECES_GROUP := &"pieces"
 
-## 真的发射出去了一枚棋子（松手且蓄力值大于 0）。阶段机靠它关上"发射边锁"。
+## 真的发射出去了一枚棋子。阶段机靠它关上"发射边锁"。
 signal piece_launched(piece: Node2D)
+## 瞄准子态变化。GameFlow 用它刷新合并按钮的文字/配色。
+signal aim_state_changed(state: int)
+
+enum AimState { NONE, ADJUST, READY, ANGLE }
 
 ## 当前被选中的棋子（全盘唯一）。null 表示没有选中任何棋子。
 var selected_piece: Node2D = null
+## 当前瞄准子态。真相在这里；棋子的 aiming/aim_angle_live/aim_charge_live 是它的镜像。
+var aim_state: int = AimState.NONE
 
 ## 阶段机（见 scripts/game_flow.gd）。**延迟到第一次用到时才去找** ——
 ## TurnController 在 main.tscn 里排在 GameFlow 之前，_ready 那会儿 GameFlow 还没进组。
@@ -41,42 +71,107 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
-	if event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			handle_left_press(get_global_mouse_position())
-		else:
-			handle_left_release()
+	if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		# UI 按钮（合并的发射/结束回合、重置）在 CanvasLayer 里，_input 比 GUI 先跑。
+		# 不拦的话，按「发射」会同时被当成地图点击 —— 尤其它就在棋盘外，
+		# 而棋盘外现在也是合法的瞄准区域。
+		#
+		# **只拦按钮，不拦所有 Control**：棋盘底板 ColorRect 也是 Control，
+		# 用「hovered != null」会把整个棋盘的左键全部吃掉。
+		if get_viewport().gui_get_hovered_control() is BaseButton:
+			return
+		handle_left_press(get_global_mouse_position())
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		clear_selection()
+		handle_right_press(get_global_mouse_position())
 
 
-## 左键按下。两步式的第一拍只选中，第二拍才开始蓄力。
-## 选中态是"粘"的：一旦有棋子被选中，只有右键能取消它，左键点别的棋子不会改选。
-## 但点在别的棋子上**照样开始蓄力** —— 瞄准的时候鼠标经常会压到别的棋子，
-## 那时候不让蓄力就没法瞄了。
+## 左键按下。状态机唯一的点击入口；**松手不做事**（蓄力不是按住的）。
 func handle_left_press(mouse: Vector2) -> void:
-	if not _can_operate():
-		return
-	var hit := _pick(mouse)
+	match aim_state:
+		AimState.NONE:
+			if not _can_operate():
+				return
+			var hit := _pick(mouse)
+			if hit == null:
+				return
+			select(hit)
+			_enter_adjust(true)
+		AimState.ADJUST:
+			if selected_piece == null:
+				return
+			# 用点击那一刻的位置再采样一次，保证锁定用的不是上一帧的缓存。
+			selected_piece.update_aim(mouse)
+			if selected_piece.charge <= 0.0:
+				return # 零力度按下不锁定，避免误触
+			_enter_ready()
+		AimState.READY:
+			if selected_piece == null:
+				return
+			if _inside_ring(mouse):
+				_enter_adjust(false)
+			else:
+				_enter_angle(mouse)
+		AimState.ANGLE:
+			if selected_piece == null:
+				return
+			if _inside_ring(mouse):
+				_enter_adjust(false)
+			else:
+				selected_piece.update_aim(mouse) # 角度仍活：锁定到点击方向
+				_enter_ready()
+
+
+## 右键：一级一级退（不是清空）。
+func handle_right_press(mouse: Vector2) -> void:
+	match aim_state:
+		AimState.ANGLE:
+			if selected_piece != null:
+				selected_piece.update_aim(mouse) # 角度活、力度冻结
+			_enter_ready()
+		AimState.READY:
+			_enter_adjust(false)
+		AimState.ADJUST:
+			clear_selection()
+		_:
+			pass
+
+
+func _inside_ring(mouse: Vector2) -> bool:
+	return selected_piece != null \
+			and selected_piece.global_position.distance_to(mouse) <= selected_piece.max_pull_radius
+
+
+func _enter_adjust(fresh: bool) -> void:
 	if selected_piece == null:
-		if hit != null:
-			select(hit) # 第一拍：只选中，不蓄力
 		return
-	selected_piece.begin_charge(mouse) # 第二拍：点在哪都是给已选中的那枚蓄力
+	if fresh:
+		selected_piece.begin_aim() # 第一次点选：力度从 0 开始
+	else:
+		selected_piece.set_aim_live(true, true) # 从就绪/角度回来：按当前鼠标重新取力
+	_set_aim_state(AimState.ADJUST)
 
 
-## 左键松开。真的发射出去了才交还选择权；落空的点击不取消选中
-## （否则第一次"点选"的松开就会立刻把刚选中的棋子取消掉）。
-##
-## 门槛只加在"按下"上，不加在这里：已经合法开始的蓄力必须能正常结束，
-## 否则棋子会卡在蓄力态。
-func handle_left_release() -> void:
+func _enter_ready() -> void:
 	if selected_piece == null:
 		return
-	_release(selected_piece)
+	selected_piece.set_aim_live(false, false)
+	_set_aim_state(AimState.READY)
 
 
-## 真的发射一枚。**玩家松手和 bot 出手都落到这里** —— 所以阶段机看到的永远是同一件事
+func _enter_angle(mouse: Vector2) -> void:
+	if selected_piece == null:
+		return
+	selected_piece.set_aim_live(true, false, true) # 直接瞄准：棋子→鼠标延长线
+	selected_piece.update_aim(mouse) # 圈外第一次点击直接指到点击处
+	_set_aim_state(AimState.ANGLE)
+
+
+func _set_aim_state(s: int) -> void:
+	aim_state = s
+	aim_state_changed.emit(aim_state)
+
+
+## 真的发射一枚。**玩家合并按钮和 bot 出手都落到这里** —— 所以阶段机看到的永远是同一件事
 ##（`piece_launched`），不需要第二条代码路径，也不会出现"某条路径忘了关边锁"。
 func _release(piece: Node2D) -> bool:
 	if not piece.release_charge():
@@ -86,23 +181,32 @@ func _release(piece: Node2D) -> bool:
 	return true
 
 
+## 玩家的合并按钮：只有就绪/角度两态允许发射。
+func is_launch_ready() -> bool:
+	if selected_piece == null or not is_instance_valid(selected_piece):
+		return false
+	if aim_state != AimState.READY and aim_state != AimState.ANGLE:
+		return false
+	return _can_operate()
+
+
+func try_launch() -> bool:
+	if not is_launch_ready():
+		return false
+	return _release(selected_piece)
+
+
 ## 程序化发射（敌方回合的 `EnemyBot` 走这里）。与玩家路径的差别**只有"谁决定方向与力度"**：
-## 玩家的方向来自鼠标、力度来自按住时长；bot 的两者都由它自己算出来。
-##
-## **会先选中它要用的那一枚** —— 和玩家点一下选中是对等的，让玩家看得见敌方在用哪一枚，
-## 否则只会看到一枚球莫名其妙飞出去。选中态由 `GameFlow._leave(ENEMY_TURN)` 统一清掉。
+## 玩家的方向/力度来自鼠标，bot 的两者都由它自己算出来。**不进入玩家的瞄准表现**。
 func launch(piece: Node2D, aim_at: Vector2, charge: float) -> bool:
 	if piece == null or not is_instance_valid(piece) or piece.locked:
 		return false
 	select(piece)
-	# ⚠️ `begin_charge()` 是 **void**，不能写 `if not piece.begin_charge(...)` ——
-	# GDScript 把 void 调用当 `null`，`not null` 恒为真，这个入口会永远返回 false。
-	# 只能调完再问 `charging`（2026-10-13 踩过：bot 出手被静默拒绝，棋子一动不动）。
-	piece.begin_charge(aim_at)
-	if not piece.charging:
-		return false # 没进蓄力态：方向落在棋盘外，或棋子被锁着
-	piece.aim_dir = (aim_at - piece.global_position).normalized()
+	var dir := aim_at - piece.global_position
+	piece.aim_dir = dir.normalized() if dir.length_squared() > 1.0 else Vector2.UP
 	piece.charge = charge
+	piece.pull_ratio = clampf(charge / piece.max_charge, 0.0, 1.0)
+	piece.aiming = false # bot 不闪玩家那套圈/弩机
 	return _release(piece)
 
 
@@ -127,11 +231,12 @@ func select(piece: Node2D) -> void:
 	selected_piece.set_selected(true)
 
 
-## 取消当前选中。若正在蓄力，由棋子自己把蓄力值和瞄准线一起清掉。
+## 取消当前选中。若正在瞄准，由棋子自己把圈/弩机/瞄准线一起清掉。
 func clear_selection() -> void:
 	if selected_piece != null and is_instance_valid(selected_piece):
 		selected_piece.set_selected(false)
 	selected_piece = null
+	_set_aim_state(AimState.NONE)
 
 
 ## 鼠标落点命中的棋子；万一多枚同时命中，取最近的一枚。

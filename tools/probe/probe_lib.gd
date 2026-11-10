@@ -77,17 +77,14 @@ static func charge_to_reach(actor: RigidBody2D, target: RigidBody2D, arrive_spee
 	return minf(v0, actor.max_charge)
 
 
-## 发一发。方向与蓄力值**直接写死**，不依赖鼠标 ——
-## 无头环境没有真鼠标（`get_global_mouse_position()` 固定返回一个假位置，
-## 而且 `Input.parse_input_event()` 也改不动它，实测）。
-## `release_charge()` 用的是 `aim_dir` 而不是现算方向，所以这样写不会被覆盖。
+## 发一发。走 `TurnController.launch()` —— 那是 bot 用的程序化入口，
+## 和玩家合并按钮共用同一个 `release_charge()` / `piece_launched` 出口。
+##
+## **为什么不模拟鼠标点击**：无头环境没有真鼠标（`get_global_mouse_position()` 固定返回
+## 一个假位置，而且 `Input.parse_input_event()` 也改不动它，实测）。方向与蓄力直接写死，
+## 探针验的是「发射 → 碰撞 → 冻结 → 伤害」这条链，不是鼠标手感。
 static func launch(turn: Node, actor: RigidBody2D, aim_at: Vector2, charge: float) -> bool:
-	turn.handle_left_press(actor.global_position) # 第一拍：选中
-	turn.handle_left_press(aim_at)                # 第二拍：开始蓄力
-	actor.aim_target = aim_at
-	actor.aim_dir = (aim_at - actor.global_position).normalized()
-	actor.charge = charge
-	turn.handle_left_release()
+	turn.launch(actor, aim_at, charge)
 	return actor.locked
 
 

@@ -21,7 +21,7 @@ extends Node
 ## 它与玩家的关系是**对称**的，不是特权通道：
 ##
 ##   · 出手前问 `GameFlow.can_enemy_launch()` —— 和玩家问的 `can_operate_pieces()` 是同一道边锁
-##   · 出手走 `TurnController.launch()` —— 和玩家松手走同一个 `piece_launched` 出口
+##   · 出手走 `TurnController.launch()` —— 和玩家合并按钮走同一个 `piece_launched` 出口
 ##   · 收工调 `GameFlow.request_end_turn()` —— 和玩家按按钮是同一个意愿位
 ##
 ## 所以规则层不知道、也不需要知道"这次是谁在打"。
@@ -117,10 +117,11 @@ func take_shot() -> bool:
 	var ok: bool = _turn.launch(shot["shooter"], shot["aim_at"], shot["charge"])
 	if not ok:
 		var s: RigidBody2D = shot["shooter"]
-		# 把发射入口那几条前置条件摊开，免得"被拒了"变成没法排查的一件事
-		push_warning("EnemyBot：发射被拒（%s → %s，蓄力 %.0f）｜ locked=%s charging=%s selected=%s 板内=%s"
+		# 把发射入口那几条前置条件摊开，免得"被拒了"变成没法排查的一件事。
+		# 新发射路径不再要求瞄准点在棋盘内（棋子可能贴边、目标在盘内），所以改看方向。
+		push_warning("EnemyBot：发射被拒（%s → %s，蓄力 %.0f）｜ locked=%s aiming=%s selected=%s 方向=%s"
 				% [s.name, shot["target"].name, shot["charge"],
-				   s.locked, s.charging, s.selected, s.table_rect.has_point(shot["aim_at"])])
+				   s.locked, s.aiming, s.selected, str(s.aim_dir)])
 	return ok
 
 

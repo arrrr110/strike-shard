@@ -29,6 +29,8 @@ enum RoleType { NONE, PROTECTOR, FIGHTER, CASTER }
 @export var attack_hold_sec: float = 0.8
 @export var hit_hold_sec: float = 0.4
 @export var zoc_hold_sec: float = 1.4
+## 发射后弩机在场上停留多久（秒）。只影响"激发"的表现，不影响物理。
+@export var fire_hold_sec: float = 0.08
 
 ## 控制域半径（像素）。以棋子中心为圆心的圆；"罩住目标" = 目标中心落在这个圆内。
 ## 角色和召唤物**一视同仁**（召唤物也有控制域，2026-10-12 决定）。
@@ -54,14 +56,20 @@ var hp: int = 0
 ## 滚动阻力减速（px/s²）：停止时间 = v₀ / decel，滚动距离 = v₀² / (2 · decel)
 @export_range(0.0, 2000.0, 10.0) var decel: float = 300.0
 
-@export_group("蓄力")
-## 蓄力上限，避免无限蓄力。mass = 1 时数值≈松开后球的速度（px/s）
+@export_group("蓄力（拉距）")
+## 蓄力上限，避免无限蓄力。mass = 1 时数值≈发射后球的速度（px/s）
 @export_range(1.0, 5000.0, 10.0) var max_charge: float = 600.0
-## 每秒蓄力值：600 / 300 = 2 秒蓄满。鼠标移出棋盘时暂停积蓄，回到盘内接着涨。
-@export_range(1.0, 5000.0, 10.0) var charge_rate: float = 300.0
-## 蓄力条颜色（正红）
+## 拉距上限（像素）：鼠标离棋子超过这个距离，蓄力封顶。
+## 大圈半径也由它决定，所以它是**输入尺度**，不是美术尺寸。
+##
+## 75 是当前 720×480 窗口下的上限：棋子贴顶墙时中心到窗口顶边只有 77 px，
+## 再大就会出现「某些方向拉不满圈边」。改窗口/相机规格时再统一调。
+@export_range(10.0, 300.0, 1.0) var max_pull_radius: float = 75.0
+## 弓臂随拉距向内弯的最大角度（度）。只影响表现；负值可以翻转弯曲方向。
+@export var limb_flex_deg: float = 5.0
+## 蓄力线颜色（正红）
 @export var charge_color: Color = Color(1, 0, 0, 1)
-## 蓄力条比指示线加粗的倍数
+## 蓄力线比 AimLine 场景基准宽度加粗的倍数
 @export var charge_width_scale: float = 2.5
 ## 蓄力条最多反弹几次。兜底：夹角极小时段长会趋近 0，不给上限可能画很久
 @export_range(1, 128, 1) var max_bounces: int = 32
@@ -89,8 +97,13 @@ var hp: int = 0
 @export_range(0.0, 100.0, 1.0) var facing_deadzone: float = 10.0
 
 var selected := false          # 是否被 TurnController 选中（全盘至多一枚为 true）
-var charge := 0.0              # 当前蓄力值
-var charging := false          # 是否正在蓄力（左键按住；鼠标出盘则暂停积蓄）
+var charge := 0.0              # 当前蓄力值（发射速度，px/s）
+var aiming := false            # 是否显示瞄准表现（调整/就绪/角度三态）
+var aim_angle_live := false    # 鼠标是否在改方向
+var aim_charge_live := false   # 鼠标是否在改力度
+## 角度语义：false = 弹弓反向（鼠标在扳机端，ADJUST）；true = 直接指向鼠标（ANGLE）。
+var aim_point_mode := false
+var pull_ratio := 0.0          # 拉距 / max_pull_radius，0..1（弩机表现直接用这个）
 var locked := false            # 球还在运动：禁止选中/蓄力
 var lock_armed := false        # 冲量生效、速度真的起来后才置 true
 var lock_time := 0.0
@@ -117,8 +130,7 @@ var _anim_warned := {}         # 已经警告过的缺失动画名，避免每�
 var home_position := Vector2.ZERO
 var home_rotation := 0.0
 var home_atk := 0
-var aim_target := Vector2.ZERO # 瞄准终点（世界坐标），鼠标出界时保留上一次的值
-var aim_dir := Vector2.ZERO    # 瞄准方向（单位向量），鼠标贴在棋子中心时保留上一次的值
+var aim_dir := Vector2.UP      # 发射方向（单位向量）。鼠标压在棋子中心时保留上一次的值
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var aura_material: ShaderMaterial = sprite.material as ShaderMaterial
@@ -129,15 +141,43 @@ var aim_dir := Vector2.ZERO    # 瞄准方向（单位向量），鼠标贴在�
 @onready var sprite_base_position: Vector2 = sprite.position
 @onready var max_tilt: float = deg_to_rad(max_tilt_deg)
 @onready var line_2d := get_node_or_null("../AimLine") as Line2D
-@onready var idle_color: Color = line_2d.default_color if line_2d != null else Color.WHITE
 @onready var idle_width: float = line_2d.width if line_2d != null else 1.0
+
+## 瞄准表现节点。**mob.tscn 没有这些节点**（它挂同一个脚本），
+## 所以全部用 get_node_or_null：缺席时静默跳过，不能报错。
+@onready var charge_ring := get_node_or_null("ChargeRing") as Line2D
+@onready var crossbow_pivot := get_node_or_null("CrossbowPivot") as Node2D
+@onready var upper_limb := get_node_or_null("CrossbowPivot/UpperLimb") as Sprite2D
+@onready var lower_limb := get_node_or_null("CrossbowPivot/LowerLimb") as Sprite2D
+## 弓臂绕着它转的**贴图连接点**（Marker2D 子节点）。没有它时退化为绕节点原点转。
+@onready var upper_pivot := get_node_or_null("CrossbowPivot/UpperLimb/UpperPivot") as Marker2D
+@onready var lower_pivot := get_node_or_null("CrossbowPivot/LowerLimb/LowerPivot") as Marker2D
+@onready var upper_tip := get_node_or_null("CrossbowPivot/UpperLimb/UpperTip") as Marker2D
+@onready var lower_tip := get_node_or_null("CrossbowPivot/LowerLimb/LowerTip") as Marker2D
+@onready var string_line := get_node_or_null("CrossbowPivot/String") as Line2D
+@onready var bolt := get_node_or_null("CrossbowPivot/Bolt") as Sprite2D
+@onready var nock := get_node_or_null("CrossbowPivot/Bolt/Nock") as Marker2D
+@onready var bolt_rest := get_node_or_null("CrossbowPivot/BoltRest") as Marker2D
+@onready var bolt_pulled := get_node_or_null("CrossbowPivot/BoltPulled") as Marker2D
+## 编辑器里摆好的弩臂基准姿态。脚本只在它上面叠加 flex/补偿，不覆盖组装姿态。
+var _upper_base_rotation := 0.0
+var _lower_base_rotation := 0.0
+var _upper_base_position := Vector2.ZERO
+var _lower_base_position := Vector2.ZERO
+## 发射"激发"表现：弩机在发射点多留 fire_hold_sec，然后隐藏。
+var _firing := false
+var _fire_left := 0.0
 
 ## 与**另一枚棋子**撞上了（撞四壁不算）。只上报事实，不判断要不要结算、更不自己扣血——
 ## 结算规则属于规则层（见 game_flow.gd 的 `_resolve_collision`）。
 signal bumped(other: RigidBody2D)
 
+
 func _ready() -> void:
-	aim_target = global_position
+	aim_dir = Vector2.UP
+	_build_charge_ring()
+	_cache_crossbow_base()
+	_hide_aim_visuals()
 	hp = max_hp
 	home_position = global_position # 快照：编辑器里摆的位置就是"初始位置"
 	home_rotation = rotation
@@ -164,10 +204,15 @@ func reset_to_home() -> void:
 	lock_armed = false
 	lock_time = 0.0
 	charge = 0.0
-	charging = false
+	pull_ratio = 0.0
+	aiming = false
+	aim_angle_live = false
+	aim_charge_live = false
+	aim_point_mode = false
+	_firing = false
+	_fire_left = 0.0
 	selected = false
-	aim_target = home_position
-	aim_dir = Vector2.ZERO
+	aim_dir = Vector2.UP
 	_anim_override = -1
 	_anim_left = 0.0
 	_anim_current = -1 # 让下一帧重新播 idle
@@ -175,8 +220,7 @@ func reset_to_home() -> void:
 		sprite.flip_h = false
 	if aura_material != null:
 		aura_material.set_shader_parameter(&"aura_width", 0.0)
-	if line_2d != null:
-		line_2d.clear_points()
+	_hide_aim_visuals()
 
 
 ## 碰撞回调：**只上报事实**。撞墙（StaticBody2D）直接过滤掉，
@@ -217,13 +261,15 @@ func _register_with_game_flow() -> void:
 		gf.register_piece(self)
 
 func _process(delta: float) -> void:
-	var mouse := get_global_mouse_position()
-	var in_board := table_rect.has_point(mouse)
+	if _firing:
+		_fire_left -= delta
+		if _fire_left <= 0.0:
+			_finish_fire_effect()
 
-	if charging:
-		# 只在鼠标位于盘内时积蓄；移出盘外就停住（不涨也不退），回到盘内接着涨。
-		if in_board:
-			charge = minf(charge + charge_rate * delta, max_charge)
+	if aiming:
+		# 鼠标不按下也在持续取力/取角；出棋盘照常更新，硬边界是窗口。
+		update_aim(get_global_mouse_position())
+		_update_aim_visuals()
 
 	if locked:
 		lock_time += delta
@@ -232,7 +278,6 @@ func _process(delta: float) -> void:
 		elif lock_armed or (max_lock_time > 0.0 and lock_time >= max_lock_time):
 			locked = false
 
-	_update_line(mouse, in_board)
 	_update_sprite_tilt(delta)
 	_update_anim(delta)
 
@@ -347,80 +392,230 @@ func set_selected(on: bool) -> void:
 		return
 	selected = on
 	if not on:
-		cancel_charge() # 顺带清掉瞄准线，否则取消选中后线上还留着上一笔
+		end_aim() # 顺带清掉圈/弩机/瞄准线，否则取消选中后线上还留着上一笔
 	if aura_material != null:
 		aura_material.set_shader_parameter(&"aura_width", aura_width_selected if on else 0.0)
 
-## 开始蓄力。只在已选中时生效。at = 按下左键时鼠标所在的棋盘坐标
-##（由 TurnController 传入，不再自己去读全局鼠标：点击位置只有一个来源）。
-func begin_charge(at: Vector2) -> void:
-	if not selected or charging or locked:
+## 进入矢量调整（第一次点选棋子）。力度从 0 开始，方向沿用上一次。
+func begin_aim() -> void:
+	if not selected or locked:
 		return
-	if not table_rect.has_point(at):
-		return # 鼠标在棋盘外：不开始蓄力
-	charging = true
+	aiming = true
+	aim_angle_live = true
+	aim_charge_live = true
+	aim_point_mode = false # ADJUST：弹弓反向（鼠标在扳机端）
 	charge = 0.0
-	aim_target = at
+	pull_ratio = 0.0
+	_show_aim_visuals()
 
-## 松开左键：施加冲量，返回是否真的发射了。
-## 蓄力值不足时返回 false，调用方据此决定要不要交还选择权。
+
+## 切换瞄准子态：angle_live = 鼠标改方向；charge_live = 鼠标改力度；
+## point_mode = 角度语义（false 弹弓反向 / true 直接指向鼠标）。
+## 就绪 = (false, false)；角度调整 = (true, false, true)；矢量调整 = (true, true, false)。
+##
+## **角度语义只在角度活着时更新**。就绪态冻结时保留上一次的模式，弩机的 180° 姿态
+## 才不会在锁定时突然翻回来。
+func set_aim_live(angle_live: bool, charge_live: bool, point_mode: bool = false) -> void:
+	if not selected or locked:
+		return
+	aiming = true
+	aim_angle_live = angle_live
+	aim_charge_live = charge_live
+	if angle_live:
+		aim_point_mode = point_mode
+	_show_aim_visuals()
+
+
+## 用给定鼠标位置采样一次瞄准（世界坐标）。
+## `_process` 每帧调用；TurnController 在「按下锁定」时也调用一次，
+## 保证锁定用的是点击那一刻的位置，而不是上一帧的缓存。
+func update_aim(mouse: Vector2) -> void:
+	if not aiming:
+		return
+	if aim_angle_live:
+		# ADJUST：弹弓反向（鼠标在扳机端）→ 发射方向 = 鼠标→棋子的反向延长线。
+		# ANGLE ：直接瞄准 → 发射方向 = 棋子→鼠标的延长线。
+		var dir := (mouse - global_position) if aim_point_mode else (global_position - mouse)
+		if dir.length_squared() > 1.0:
+			aim_dir = dir.normalized()
+	if aim_charge_live:
+		var d := clampf(global_position.distance_to(mouse), 0.0, max_pull_radius)
+		pull_ratio = d / max_pull_radius
+		charge = max_charge * pull_ratio
+
+
+## 施加冲量并结束瞄准，返回是否真的发射了。
+## **唯一发射出口**：玩家合并按钮和 bot 都走这里。
 func release_charge() -> bool:
-	if not charging:
-		return false
-	charging = false
 	var power := charge
-	charge = 0.0
-
-	if line_2d != null:
-		line_2d.clear_points() # 1. 先清空线条（不可操作的球没有瞄准线）
-
-	if power <= 0.0:
-		return false # 空点不发射，也不上锁
-
-	# 2. 球开始运动。方向用 aim_dir 而不是现算 (aim_target - global_position)：
-	#    必须和蓄力条画出来的是同一个方向，否则鼠标压在球心上时两者会分叉
-	#   （条子指着上一次的方向，冲量却算出个零向量，球原地锁死）。
 	var dir := aim_dir if aim_dir != Vector2.ZERO else Vector2.UP
-	apply_central_impulse(dir * power)
+	# 玩家的弩机在发射点演一下"激发"；bot 没有瞄准表现，跳过。
+	var show_fire := aiming and power > 0.0 \
+			and crossbow_pivot != null and crossbow_pivot.visible
+	if show_fire:
+		_start_fire_effect()
+	end_aim() # 先清表现，再施加冲量
+	if power <= 0.0:
+		return false # 零力度不发射，也不上锁
 
-	locked = true # 3. 静止前禁止再次选中/蓄力
+	apply_central_impulse(dir * power)
+	locked = true # 静止前禁止再次选中/蓄力
 	lock_armed = false
 	lock_time = 0.0
 	return true
 
-## 清掉蓄力值和瞄准线。不动 locked —— 发射后的锁定归 _process 的静止判定管。
-func cancel_charge() -> void:
-	charging = false
+
+## 结束瞄准表现（取消选中、发射、重置都走这里）。不动 locked ——
+## 发射后的锁定归 _process 的静止判定管。
+func end_aim() -> void:
+	aiming = false
+	aim_angle_live = false
+	aim_charge_live = false
+	aim_point_mode = false
 	charge = 0.0
-	if line_2d != null:
-		line_2d.clear_points()
+	pull_ratio = 0.0
+	_hide_aim_visuals()
+
+
+## 旧名字保留给外部调用；语义等同结束瞄准。
+func cancel_charge() -> void:
+	end_aim()
 
 # ---------- 表现 ----------
 
-## 画线：把"画什么"收在一个地方按状态分支，
-## 指示线和蓄力条就不会各写一份 points 互相覆盖。
-func _update_line(mouse: Vector2, in_board: bool) -> void:
-	# 没被选中的棋子不画（全盘只有一枚在写这条共享线）；球还在动时也不画
-	if not selected or line_2d == null or locked:
-		return
-	if in_board:
-		aim_target = mouse # 只在盘内更新方向，出界保持上一次
-	# 鼠标正好压在棋子中心时方向无定义，保留上一次的方向，别让蓄力条缩成一个点
-	var to_mouse := aim_target - global_position
-	if to_mouse.length_squared() > 1.0:
-		aim_dir = to_mouse.normalized()
+## 瞄准表现的显隐与变换。节点全部走 get_node_or_null，mob 缺席时静默跳过。
+func _show_aim_visuals() -> void:
+	# 新的瞄准开始：取消还没播完的激发表现，避免它把新瞄准藏掉。
+	_firing = false
+	_fire_left = 0.0
+	if bolt != null:
+		bolt.centered = false # 每次出现都从默认形态开始
+	if charge_ring != null:
+		charge_ring.visible = true
+	if crossbow_pivot != null:
+		crossbow_pivot.visible = true
+	_update_aim_visuals()
 
-	if charging:
-		# 蓄力条 = 理想轨迹预测：从棋子出发沿 aim_dir 走，撞到棋盘边就完全反射，
-		# 一直画到总路程用尽。不预测与其他棋子的碰撞（那是打出去才知道的事）。
-		line_2d.default_color = charge_color
-		line_2d.width = idle_width * charge_width_scale
-		_set_points(_predict_path(global_position, aim_dir, charge))
+
+## 每帧刷新瞄准表现。这些都只是**表现**：真相是 `aim_dir` / `pull_ratio` / `charge`。
+func _update_aim_visuals() -> void:
+	if charge_ring != null:
+		# 圈是 top_level 的，每帧对齐棋子；半径由生成时的 points 固定
+		charge_ring.global_position = global_position
+
+	if crossbow_pivot != null:
+		crossbow_pivot.global_position = global_position
+		# 弩机的美术正面在局部 -X，所以整机恒定 +180°，视觉正面才会沿 aim_dir
+		#（引导线 / 发射方向）指。矢量调整和角度调整都适用。
+		crossbow_pivot.global_rotation = aim_dir.angle() + PI
+		_set_crossbow_pose(pull_ratio)
+
+	_update_line()
+
+
+## 把弩机摆到指定拉距（0..1）：弓臂旋转 + 位置补偿、箭后拉、弦的 V。
+## 弓臂的位置补偿是必须的：Sprite2D 的贴图有 offset，直接 rotation 会绕节点原点
+## 甩动整根弓臂（连接点会漂）。这里按 pivot marker 反算位置，把连接点钉住。
+func _set_crossbow_pose(pull: float) -> void:
+	var flex := deg_to_rad(limb_flex_deg) * pull
+	_apply_limb_flex(upper_limb, upper_pivot,
+			_upper_base_position, _upper_base_rotation, flex)
+	_apply_limb_flex(lower_limb, lower_pivot,
+			_lower_base_position, _lower_base_rotation, -flex)
+
+	if bolt != null and bolt_rest != null and bolt_pulled != null:
+		bolt.position = bolt_rest.position.lerp(bolt_pulled.position, pull)
+
+	if string_line != null and upper_tip != null and nock != null and lower_tip != null:
+		string_line.points = PackedVector2Array([
+			string_line.to_local(upper_tip.global_position),
+			string_line.to_local(nock.global_position),
+			string_line.to_local(lower_tip.global_position),
+		])
+
+
+## 让弓臂绕 pivot marker 转 flex，同时反向平移节点，使连接点在父空间里不动。
+func _apply_limb_flex(limb: Sprite2D, pivot: Marker2D,
+		base_pos: Vector2, base_rot: float, flex: float) -> void:
+	if limb == null:
+		return
+	var p := pivot.position if pivot != null else Vector2.ZERO
+	limb.rotation = base_rot + flex
+	limb.position = base_pos + p.rotated(base_rot) - p.rotated(base_rot + flex)
+
+
+## 发射"激发"：在发射点保留弩机，弓臂归位、箭切到 centered=true，停 fire_hold_sec。
+func _start_fire_effect() -> void:
+	_firing = true
+	_fire_left = fire_hold_sec
+
+
+func _finish_fire_effect() -> void:
+	_firing = false
+	_fire_left = 0.0
+	# 弓臂归位、箭回静止位、centered 恢复默认；弩机隐藏。下一发重新出现时是默认形态。
+	_hide_aim_visuals()
+
+
+## 藏掉瞄准表现并把弩机/箭恢复基准姿态。重置和取消选中都走这里。
+## 发射的激发窗口内（_firing）**不藏弩机**：让玩家看到撞针杆被激发出去。
+func _hide_aim_visuals() -> void:
+	if charge_ring != null:
+		charge_ring.visible = false
+	if line_2d != null:
+		line_2d.clear_points()
+		line_2d.visible = false
+	if crossbow_pivot == null:
+		return
+
+	_set_crossbow_pose(0.0)
+	if _firing:
+		crossbow_pivot.visible = true
+		if bolt != null:
+			bolt.centered = true # 激发形态；下次 _show/_finish 会恢复 false
 	else:
-		# 未蓄力时是"指向鼠标"的指示线，长度自然跟着鼠标走
-		line_2d.default_color = idle_color
-		line_2d.width = idle_width
-		_set_points(PackedVector2Array([global_position, aim_target]))
+		crossbow_pivot.visible = false
+		if bolt != null:
+			bolt.centered = false
+
+
+## 画线：瞄准期间**只有一种线**——理想轨迹预测。
+## 旧的分支（未蓄力时画"指向鼠标"的短线、蓄力时画轨迹）已随蓄能机制改版删除。
+func _update_line() -> void:
+	if not aiming or line_2d == null or locked:
+		return
+	line_2d.visible = true
+	line_2d.default_color = charge_color
+	line_2d.width = idle_width * charge_width_scale
+	_set_points(_predict_path(global_position, aim_dir, charge))
+
+
+## 按 max_pull_radius 生成大圈的线点。圈的半径只有一个真相来源：
+## Player 的 `max_pull_radius`，**不是场景里 Line2D 的缩放**。
+func _build_charge_ring() -> void:
+	if charge_ring == null:
+		return
+	var n := 96
+	var pts := PackedVector2Array()
+	pts.resize(n)
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		pts[i] = Vector2(cos(a), sin(a)) * max_pull_radius
+	charge_ring.points = pts
+
+
+## 记录弓臂在编辑器里摆好的基准姿态，以及箭的静止位。
+func _cache_crossbow_base() -> void:
+	if upper_limb != null:
+		_upper_base_rotation = upper_limb.rotation
+		_upper_base_position = upper_limb.position
+	if lower_limb != null:
+		_lower_base_rotation = lower_limb.rotation
+		_lower_base_position = lower_limb.position
+	if bolt != null and bolt_rest != null:
+		bolt.position = bolt_rest.position
+	if bolt != null:
+		bolt.centered = false
 
 
 ## 理想轨迹 = 把球按真实物理推一遍，只是不算其他棋子。

@@ -78,6 +78,7 @@ script = ExtResource("7_shakecam")
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=1474384611]
 modulate = Color(1, 1, 1, 0.54901963)
+z_index = -100
 offset_left = 163.0
 offset_top = 62.0
 offset_right = 621.0

@@ -25,19 +25,24 @@
 
 ```
 main (Node2D)
-├── ColorRect                          棋盘底色（半透明面板）
+├── UI (CanvasLayer)
+│   ├── WorldPositionLabel / PlayerPositionLabel   调试用
+│   ├── LifeCycle                      当前阶段名
+│   ├── EndTurnButton                  「结束回合」/「发射」（按瞄准子态动态切换）
+│   ├── ResetButton                    重置
+│   └── OwnerHp                        归属方血量
+├── ShakeCamera                        相机（zoom 由 reserve_px 反算）
+├── ColorRect                          棋盘底色（半透明面板，z = -100）
 ├── TileMapLayer                       （空，只挂调试 Label 脚本）
-├── WorldPositionLabel / PlayerPositionLabel   调试用
 ├── StaticBody2D                       ← 棋盘容器：四壁 + 三枚棋子 + Mob + AimLine
 │   ├── Player1 / Player2 / Player3    player.tscn 实例（我方）
+│   │   └── ChargeRing / CrossbowPivot 瞄准表现（大圈/弩机，见下）
 │   ├── Mob / Mob2 / Mob3              mob.tscn 实例（敌方，也挂 player.gd，owner_id = 1）
 │   ├── AimLine                        Line2D，全盘共享一条
 │   └── top / end / bottom / start     四面 WorldBoundaryShape2D 墙，friction = 0
-├── TurnController                     ← 选择协调（scripts/turn_controller.gd）
-├── LifeCycle                          ← Label，显示当前阶段名
-├── EndTurnButton                      ← Button，"结束回合"
-├── ResetButton                        ← Button，"重置"（重开一局）
+├── TurnController                     ← 选择协调 + 四态瞄准状态机（scripts/turn_controller.gd）
 ├── GameFlow                           ← 阶段机（scripts/game_flow.gd）
+├── EnemyBot                           ← 敌方 bot
 └── HpOverlay                          ← 血量显示（scripts/hp_overlay.gd，调试级）
 ```
 
@@ -45,9 +50,9 @@ main (Node2D)
 
 | 脚本 | 职责 | 所在组 |
 | --- | --- | --- |
-| `game_flow.gd` | 阶段机：阶段推进、停留、棋盘级静止判定、发射边锁、输入许可、按钮与 Label、**归属方血量池**、**棋子名单增删** | `game_flow` |
-| `turn_controller.gd` | 选择协调：全盘唯一 `selected_piece`、鼠标解释、发射信号 | `turn_controller` |
-| `player.gd` | 棋子：蓄力、瞄准线、轨迹预测、贴图倾斜、恒定减速、**归属与血量** | `pieces`（含 Mob） |
+| `game_flow.gd` | 阶段机：阶段推进、停留、棋盘级静止判定、发射边锁、输入许可、按钮与 Label、**归属方血量池**、**棋子名单增删**、**合并按钮的发射/空过分流** | `game_flow` |
+| `turn_controller.gd` | 选择协调：全盘唯一 `selected_piece`、**四态瞄准状态机**、鼠标解释、发射信号 | `turn_controller` |
+| `player.gd` | 棋子：**径向拉距蓄力**、**大圈/弩机表现**、轨迹预测、贴图倾斜、恒定减速、**归属与血量** | `pieces`（含 Mob） |
 | `hp_overlay.gd` | 在棋子头上画血量与类型、画控制域圆。**调试级，不是最终 UI**。归属方血量池**已挪走**（它是屏幕 UI，现在在 `main.tscn` 的 `UI/OwnerHp` 标签上） | — |
 | `tile_map_layer.gd` | 只维护两个调试 Label（路径里带 `UI/`） | — |
 | `shake_camera.gd` | 屏幕抖动：三档、伤害→档位、`reserve_px` 反算 zoom | — |
@@ -171,27 +176,66 @@ if piece.owner_id != who:
 改成"谁可选由 `active_owner_id()` 决定"之后，bot 落地时不需要再动棋子：
 `ENEMY_TURN` 期间它返回 `1`，敌方棋子**自动**变成可选的（实测已验证）。
 
-交互是**两次按键 + 粘性**（决策 19）：
+交互是**四态瞄准**（决策 48，2026-11-08 取代决策 19 的两次按键）：
+
+| 状态 | 进入 | 左键（非按钮） | 右键 |
+| --- | --- | --- | --- |
+| `NONE` | 初始 | 点本方棋子 → `ADJUST` | — |
+| `ADJUST` | 点棋子 | 力度 > 0 → `READY`（锁定） | → `NONE` |
+| `READY` | `ADJUST` 左键 | 圈内 → `ADJUST`；圈外 → `ANGLE` | → `ADJUST` |
+| `ANGLE` | `READY` 圈外 | 圈内 → `ADJUST`；圈外 → `READY` | → `READY` |
+
+**方向语义分两套**（2026-11-10 修正）：`ADJUST` 是弹弓逻辑，`ANGLE` 是直接瞄准。
+两者由 `player.gd` 的 `aim_point_mode` 区分，**不要复用同一个取角公式**。
+
+**鼠标不按住**：`ADJUST` 里 `_process` 每帧读鼠标；**按下才锁定**，松手不发射。
+`player.gd` 的 `update_aim(mouse)` 是唯一取力/取角入口：
+
+- `ADJUST`：`aim_dir = (global_position - mouse).normalized()`（鼠标在扳机端，发射反向）
+- `ANGLE`：`aim_dir = (mouse - global_position).normalized()`（棋子→鼠标，直接指向目标）
+- 鼠标压在棋子中心时，方向无定义，保留上一次
+- `d = clamp(|global_position - mouse|, 0, max_pull_radius)`
+- `charge = max_charge * d / max_pull_radius`（线性）
 
 ```gdscript
 func handle_left_press(mouse: Vector2) -> void:
-	if not _can_operate():
-		return                       # 操作许可由阶段机发放
-	var hit := _pick(mouse)
-	if selected_piece == null:
-		if hit != null:
-			select(hit)              # 第一拍：只选中，不蓄力
-		return
-	selected_piece.begin_charge(mouse)   # 第二拍：点在哪都是给已选中的那枚蓄力
+	match aim_state:
+		AimState.NONE:
+			if not _can_operate():
+				return
+			var hit := _pick(mouse)
+			if hit == null:
+				return
+			select(hit)
+			_enter_adjust(true)
+		AimState.ADJUST:
+			selected_piece.update_aim(mouse)
+			if selected_piece.charge <= 0.0:
+				return                     # 零力度按下不锁定
+			_enter_ready()
+		AimState.READY:
+			if _inside_ring(mouse):
+				_enter_adjust(false)
+			else:
+				_enter_angle(mouse)
+		AimState.ANGLE:
+			if _inside_ring(mouse):
+				_enter_adjust(false)
+			else:
+				selected_piece.update_aim(mouse)   # 角度仍活：锁定到点击方向
+				_enter_ready()
 ```
 
-"点别的角色不改选、但照样蓄力"是刻意的：瞄准时鼠标经常会压到别的角色，
-那时不让蓄力就没法瞄。想换角色必须先右键取消。
+**为什么按钮不在这条路径上**：`_input` 在 GUI 之前派发；合并按钮在 CanvasLayer 里，
+必须用 `gui_get_hovered_control() is BaseButton` 把按钮点击从地图点击里摘出去。
+**只拦 `BaseButton`，不拦所有 `Control`** —— 棋盘底板 `ColorRect` 也是 Control，
+全拦会把整个棋盘的左键吃掉。
 
-**右键**清选中；**`_input` 而不是 `_unhandled_input`**——`_input` 在 GUI 之前派发，
-不会被 `Control` 吃掉。
+**发射**：`try_launch()` 只在 `READY` / `ANGLE` 且 `_can_operate()` 为真时调 `release_charge()`；
+`GameFlow` 的合并按钮在发射成功后顺手 `request_end_turn()`。bot 走 `launch(piece, aim_at, charge)`，
+直接写 `aim_dir` / `charge`，**不进入玩家的瞄准表现**。
 
-**`piece_launched(piece)` 信号**：`handle_left_release()` 里 `release_charge()` 返回 true 时发出，
+**`piece_launched(piece)` 信号**：`_release()` 里 `release_charge()` 返回 true 时发出，
 emit 在 `clear_selection()` **之后**，让阶段机看到的是最终状态。
 
 ## 棋子（`scripts/player.gd`）
@@ -237,13 +281,52 @@ Mob 通过 `owner_id = 1` 变成"敌方"——不可被选中、但仍被撞着�
 > 它们全是屏幕 UI，都搬进了 `UI` 层。**搬完记得改路径**：`tile_map_layer.gd` 里
 > `$"../WorldPositionLabel"` 这类路径是写死的，标签一挪就变成 null（这次就踩了）。
 
-### 蓄力
+### 蓄力 = 径向拉距（2026-11-08，决策 48）
 
-- `charge_rate = 300`（蓄满 2 秒，决策 22）
-- **鼠标移出 `table_rect` 时蓄力暂停**：不涨也不退，回到盘内接着涨（决策 22）
-- **零蓄力松手**：不施加冲量、不上锁、保留选中，可以重新蓄力
+- `max_pull_radius = 75`（px）：鼠标离棋子超过它，力度封顶；大圈半径也由它生成
+- `charge = max_charge × clamp(拉距, 0, 75) / 75`（线性）
+- **鼠标不按住**：`ADJUST` 里每帧读鼠标；按下才锁定；松手不发射
+- `begin_aim()` / `set_aim_live(angle_live, charge_live)` / `end_aim()` 管三个子态；
+  `update_aim(mouse)` 是唯一取力/取角入口
+- **旧规则已删除**：`charge_rate`（时间蓄力）、鼠标出棋盘暂停、零蓄力松手重新蓄力
+- 大圈 `ChargeRing` 是 Line2D，点由 `max_pull_radius` 生成（**不缩放节点**）；
+  弩机 `CrossbowPivot` 按 `aim_dir` 转，弓臂/箭按 `pull_ratio` 变形。两者都只加在
+  `player.tscn`；`mob.tscn` 缺席时静默跳过（共用脚本）
 
-### 蓄力条 = 理想轨迹预测（决策 20）
+### 弩机表现：弓臂弯 + 激发（2026-11-10）
+
+`CrossbowPivot` 下（只加在 `player.tscn`，mob 缺席时静默跳过）：
+
+| 节点 | 作用 |
+| --- | --- |
+| `Stock` / `UpperLimb` / `LowerLimb` / `Bolt` | 四个 Sprite2D，同一张 sheet 的 region |
+| `UpperPivot` / `LowerPivot` | Marker2D：弓臂绕着转的**贴图连接点** |
+| `UpperTip` / `LowerTip` / `Nock` | 弦的三个挂点（Marker2D） |
+| `BoltRest` / `BoltPulled` | 箭尾的静止位 / 最大后拉位（Marker2D） |
+| `String` | Line2D，脚本按 `UpperTip → Nock → LowerTip` 现画 |
+
+**弓臂的位置补偿**：Sprite2D 的贴图带 `offset`，只写 `rotation` 会绕节点原点甩动整根弓臂，
+连接点会漂。脚本按 `pivot` marker 反算节点位置：
+
+```gdscript
+limb.rotation = base_rot + flex
+limb.position = base_pos + p.rotated(base_rot) - p.rotated(base_rot + flex)
+```
+
+于是弓臂绕 `UpperPivot`/`LowerPivot` 弯，粗的连接端在父空间里钉住；`UpperTip`/`LowerTip`
+跟着弓臂走，弦的 V 自动变深。`pull_ratio` 同时驱动弓臂 flex、箭后拉、弦的 V——三者线性同源。
+
+**发射激发**（`fire_hold_sec`，默认 0.08 秒）：发射后在发射点保留弩机；弓臂归位、
+`Bolt.centered = true`，然后隐藏。下一次 `_show_aim_visuals()` / `_finish_fire_effect()`
+把 `centered` 恢复 `false`，所以"下次出现"仍是默认形态。bot 的 `aiming = false`，不触发这段表现。
+
+**z**：弩身/弓臂继承 `CrossbowPivot` 的 `-5`（角色后）；`String` / `Bolt` 在场景里设
+`z_as_relative = false`、`z_index = 5 / 6`（角色前），保证蓄力读数不被角色挡住。
+
+> **2026-11-10 现状**：弓臂 flex / 整机 180° 朝向已确认；**弓弦与撞针杆的视觉对齐尚未成功**
+>（挂点/offset/`centered` 方向），用户决定先搁置，代码骨架与标记保留。详见 [TODO](../TODO.md) 第 5 条。
+
+### 引导线 = 理想轨迹预测（决策 20；2026-11-08 起是唯一力度读数）
 
 不是一根长度条，而是**把球按真实物理推一遍算出的折线**：
 
@@ -263,7 +346,7 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 ### 有效弹性
 
 `_effective_bounce()` 把球和墙两边的 `bounce` 都读出来，按 **Godot 自己的规则**合并
-（**相加后夹到 1**，实测确认，不是取最大值）。所以调任何一个材质，真实运动和蓄力条
+（**相加后夹到 1**，实测确认，不是取最大值）。所以调任何一个材质，真实运动和引导线
 同时跟着变——这就是"两边共用一套参数"的落点。
 
 ## 碰撞结算（2026-10-10 加入）
@@ -515,7 +598,7 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 1. **碰撞几乎不损失能量**：四壁与棋子都是 `bounce = 0.8`，相加夹到 1.0 → 完全弹性；
    等质量正碰基本就是"撞人的停下、被撞的以原速飞出去"。传递率 97~99%。
 2. **总路程守恒**：等质量 + 完全弹性 + 同一个 `decel` 时，动能只是在两枚之间**转手**。
-   所以**全场总路程 ≈ 这一发的解析射程**（实测 +1.9% ~ +2.7%，正是蓄力条那节记的
+   所以**全场总路程 ≈ 这一发的解析射程**（实测 +1.9% ~ +2.7%，正是引导线那节记的
    "逐帧积分比解析多走 1~3%"）。
 3. **推论：被撞的球只能飞"剩下的射程"**。蓄力 300 的总预算就 150 px，行动角色跑完
    111 px 才撞上，剩下 40 px 才轮到被撞的（实测 42）——
@@ -534,7 +617,8 @@ func _predict_path(start, dir, v0) -> PackedVector2Array:
 Mob 那 204 px 不是衰减，是它撞墙折返、**把动能还给了行动角色**（也顺带触发了本回合的第二次冻结）。
 
 > **所以想改"打击感"，旋钮是这三个，别去动冻结**：
-> 1. **`max_charge` / `charge_rate`**（600 / 300）：直接抬"这一发总共能走多远"的**预算**。
+> 1. **`max_charge`**（600）：直接抬"这一发总共能走多远"的**预算**；
+>    `max_pull_radius`（75）只改"拉多远算满力"的输入手感，**不改射程**。
 > 2. **`decel`**（300 px/s²）：与射程互为倒数（`射程 = v₀²/(2·decel)`），
 >    但它**不改变"撞飞距离占预算的比例"** —— 被撞的永远只拿到剩下的那段。
 > 3. **冻结时长**：不改物理，只改"撞完之后静止多久才起飞"的观感。
@@ -591,7 +675,7 @@ TURN_END ─(1s)→ ENEMY_TURN ─(bot 出手)→ MOTION ─(静止)→ ENEMY_TU
 | 门 | 玩家走 | bot 走 | 共用的是什么 |
 | --- | --- | --- | --- |
 | 出手许可 | `can_operate_pieces()` | `can_enemy_launch()` | 同一个 `launch_available` 边锁（决策 11） |
-| 发射出口 | 松手 → `handle_left_release` | `TurnController.launch()` | 同一个 `_release()` → `piece_launched` |
+| 发射出口 | 就绪/角度态按合并按钮 → `try_launch()` | `TurnController.launch()` | 同一个 `_release()` → `piece_launched` |
 | 收工意愿 | 点按钮 → `request_end_turn()` | `request_end_turn()` | 同一个 `_end_turn_requested` |
 
 **`MOTION` 返回"发起方自己的枢纽"**（靠 `_active_owner` 判定），不写死回 `PLAYER_TURN`。
@@ -611,12 +695,13 @@ TURN_END ─(1s)→ ENEMY_TURN ─(bot 出手)→ MOTION ─(静止)→ ENEMY_TU
 **但"自己回合开始"不能简单地写成"进入枢纽"** —— 枢纽会被 `MOTION` 回访，
 那样敌人一回合能打两发。判据是 `from != MOTION`（`_enter` 因此多收一个 `from` 参数）。
 
-**2. `begin_charge()` 是 `void`，不能写 `if not piece.begin_charge(...)`。**
+**2. 合并按钮与地图点击的冲突：`_input` 比 GUI 先跑。**
 
-GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会**永远返回 false**，
-而且 `charging` 已经置上了，看起来像"棋子不听话"。
-踩到的症状：bot 挑好了目标、算好了力度，发射被静默拒绝，棋子一动不动。
-只能调完再问 `piece.charging`。
+`EndTurnButton` 在 CanvasLayer 里，`TurnController._input` 先收到左键。不拦的话，
+按「发射」会同时被当成地图点击（它就在棋盘外，而棋盘外现在也是合法瞄准区域）。
+拦法必须是 `gui_get_hovered_control() is BaseButton`——**不能拦所有 Control**：
+棋盘底板 `ColorRect` 也是 Control，全拦会把整个棋盘的左键吃掉。
+旧版 `_input` 靠「鼠标出棋盘就无效」侥幸避开了这个问题，新机制下这个屏障不存在了。
 
 ### bot 自己：`scripts/enemy_bot.gd`
 
@@ -701,7 +786,7 @@ GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会
 | 事实 | 说明 |
 | --- | --- |
 | 2D 弹性是**两边 bounce 相加再夹到 1** | `0.8 + 0.8 → 1.0`（完全弹性），`0.8 + 0.0 → 0.8`。不是取最大值 |
-| 有摩擦时斜射撞墙会**把平动转成自转** | 入射角 ≠ 反射角，蓄力条会高估 7%~22%。所以四壁设 `friction = 0` |
+| 有摩擦时斜射撞墙会**把平动转成自转** | 入射角 ≠ 反射角，引导线会高估 7%~22%。所以四壁设 `friction = 0` |
 | **没有 `space_step`** | `PhysicsServer2D` 没有任何手动步进接口，做不到"后台模拟一次碰撞然后立刻画出轨迹" |
 | 运行期改 `PhysicsMaterial.bounce` 未必传到求解器 | 要整体赋值一个新材质才可靠。所以预测是**读**材质而不是写材质 |
 
@@ -729,8 +814,8 @@ GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会
 | 14 | 静止判定是棋盘级 | `game_flow.gd._board_at_rest()` |
 | 17 | 回合级 5 阶段；选中/蓄力/射击是动作 | `enum Phase`，`TurnController` + `player.gd` |
 | 18 | 枢纽叫 `PLAYER_TURN` | 同上 |
-| 19 | 两次按键 + 粘性选中 | `TurnController.handle_left_press` |
-| 20 | 蓄力条 = 理想轨迹预测 | `player.gd._predict_path` |
+| 19 / 48 | 四态瞄准（调整/就绪/角度）+ 径向拉距 + 合并按钮 | `TurnController.aim_state` / `handle_left_press` / `try_launch`；`player.gd.update_aim` |
+| 20 | 引导线 = 理想轨迹预测 | `player.gd._predict_path` |
 | 21 | 四壁 `friction = 0` | `main.tscn` 的 `PhysicsMaterial_6strp` |
 | 35 | 逻辑值是唯一真相，动画扣血是纯表现 | 伤害在 `_end_freeze` / `_strike_zoc` 里直接改数值，`hp_overlay` 直接读 `piece.hp` —— 中间没有"等动画"的一层 |
 | 36 | 屏幕抖动三档、伤害落地时触发、相机比窗口小一圈 | `shake_camera.gd` + `game_flow.gd._shake_for_damage()`；`reserve_px` → `zoom` 在 `ShakeCamera._fit_zoom()` |
@@ -743,10 +828,10 @@ GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会
 | 文件 | 性质 |
 | --- | --- |
 | `scripts/game_flow.gd` | 新增 |
-| `scripts/turn_controller.gd` | 新增 |
-| `scripts/player.gd` | 重写：删除 `ui_*` 旧推力与 `_input`；新增轨迹预测、有效弹性、`hit_test` / `set_selected` / `begin_charge` / `release_charge` / `cancel_charge` 能力接口 |
-| `sences/main.tscn` | 新增 `GameFlow` / `TurnController` / `EndTurnButton`；`Player` → `Player1`；四壁加 `friction = 0` |
-| `sences/player.tscn` | 挂 aura 描边材质（`resource_local_to_scene = true`，保证三枚实例各自独立） |
+| `scripts/turn_controller.gd` | 新增：选择协调 + **四态瞄准状态机**（2026-11-08）；`try_launch()` / bot 的 `launch()` |
+| `scripts/player.gd` | 重写：删除 `ui_*` 旧推力与 `_input`；新增轨迹预测、有效弹性、`hit_test` / `set_selected` / `begin_aim` / `set_aim_live` / `update_aim` / `release_charge` / `end_aim` 能力接口；2026-11-08 加径向拉距与大圈/弩机表现 |
+| `sences/main.tscn` | 新增 `GameFlow` / `TurnController` / `EndTurnButton`；`Player` → `Player1`；四壁加 `friction = 0`；2026-11-08 起 `EndTurnButton` 兼任发射按钮，`ColorRect.z_index = -100`（让瞄准表现画在底板之上、棋子之下） |
+| `sences/player.tscn` | 挂 aura 描边材质（`resource_local_to_scene = true`，保证三枚实例各自独立）；2026-11-08 加 `ChargeRing` / `CrossbowPivot` 瞄准表现节点 |
 | `sences/mob.tscn` | 挂 `player.gd` + `owner_id = 1`，并补齐与棋子一致的物理材质与阻尼模式 |
 | `shaders/aura.gdshader` | 新增 |
 | `scripts/shake_camera.gd` | 新增（2026-10-12）：三档抖动、伤害→档位阈值、`reserve_px` 反算 `zoom` |
@@ -783,8 +868,9 @@ GDScript 把 void 调用当 `null`，`not null` 恒为真 —— 这个入口会
   `_input` 收到，但 viewport 记的鼠标位置不变。所以"鼠标 → 世界坐标"这条映射
   **在无头环境里测不了**，只能按 `相机中心 + (屏幕点 − 视口中心) / zoom` 核对公式
   （已核对过，`zoom = 1.0909` 下与实测吻合到小数点后五位）。
-  **要发射一枚棋子就绕开鼠标**：直接写 `piece.aim_target` / `aim_dir` / `charge` 再调
-  `handle_left_release()` —— `release_charge()` 用的是 `aim_dir` 而不是现算方向，不会被覆盖。
+  **要发射一枚棋子就绕开鼠标**：调 `TurnController.launch(piece, aim_at, charge)` ——
+  它直接写 `aim_dir` / `charge` 再走同一个 `release_charge()`，不进入玩家的瞄准表现。
+  `release_charge()` 用的是 `aim_dir` 而不是现算方向，不会被覆盖。
 - **不加 `--fixed-fps 60` 时，"帧数 ÷ 60" 算出来的时长是假的**：无头循环跑得比实时快，
   145 帧其实只有 1.0 秒，上一版探针把它算成了 2.42 秒。要么加 `--fixed-fps 60`，
   要么按 `_process` 的真实 delta 累加。

@@ -157,7 +157,9 @@ func _ready() -> void:
 	_end_turn_button = get_node_or_null("../UI/EndTurnButton") as Button
 
 	if _end_turn_button != null:
-		_end_turn_button.pressed.connect(request_end_turn)
+		# 发射和结束回合合并成一个按钮（2026-11-08）：就绪/角度两态是「发射」，
+		# 其余状态是「结束回合」（空过）。具体由 _on_turn_action_pressed 分流。
+		_end_turn_button.pressed.connect(_on_turn_action_pressed)
 	_reset_button = get_node_or_null("../UI/ResetButton") as Button
 	if _reset_button != null:
 		_reset_button.pressed.connect(reset_match)
@@ -167,6 +169,10 @@ func _ready() -> void:
 	_update_owner_hp_label()
 	if _turn_controller != null and _turn_controller.has_signal(&"piece_launched"):
 		_turn_controller.piece_launched.connect(_on_piece_launched)
+	# 瞄准子态一变就刷新合并按钮的文字/配色（PLAYER_TURN 内部的状态变化
+	# 不会触发 _enter，所以必须单独接这条信号）。
+	if _turn_controller != null and _turn_controller.has_signal(&"aim_state_changed"):
+		_turn_controller.aim_state_changed.connect(_on_aim_state_changed)
 
 	_enter(phase) # 开局停在 TURN_START，让玩家从头看到一整圈
 
@@ -769,11 +775,39 @@ func _on_piece_launched(piece: Node) -> void:
 	_actor = piece as Node2D # 它成为本回合的行动角色，只有它能造成伤害
 
 
+## 合并按钮的唯一入口（2026-11-08）：
+##   · 就绪/角度两态 → 发射；发射成功后顺手把「结束回合」的意愿也立起来
+##     （发射永远是本回合最后一次事件，所以合并是安全的）
+##   · 其余状态（未选中/矢量调整）→ 空过：只立「结束回合」意愿
+##
+## **发射失败不会静默变成空过**：就绪/角度态下按这个按钮，意图是发射；
+## 状态异常时宁可不动，也不替玩家把回合结束掉。
+func _on_turn_action_pressed() -> void:
+	if _turn_controller != null and is_instance_valid(_turn_controller) \
+			and _turn_controller.has_method(&"is_launch_ready") \
+			and _turn_controller.is_launch_ready():
+		if _turn_controller.try_launch():
+			request_end_turn()
+		return
+	request_end_turn()
+
+
+func _on_aim_state_changed(_state: int) -> void:
+	_update_button()
+
+
 func _update_button() -> void:
 	if _end_turn_button == null:
 		return
 	# 我的回合和移动碰撞期间都能点。点了只是记下意愿，不会立刻切阶段
 	_end_turn_button.disabled = phase != Phase.PLAYER_TURN and phase != Phase.MOTION
+	var launch_ready := false
+	if _turn_controller != null and is_instance_valid(_turn_controller) \
+			and _turn_controller.has_method(&"is_launch_ready"):
+		launch_ready = _turn_controller.is_launch_ready()
+	# 「发射」这个视觉提示只在就绪/角度两态出现；其余状态是「结束回合」。
+	_end_turn_button.text = "发射" if launch_ready else "结束回合"
+	_end_turn_button.modulate = Color(1.0, 0.72, 0.35) if launch_ready else Color.WHITE
 
 
 func _update_label() -> void:
