@@ -1,0 +1,77 @@
+design/20-character/DESIGN.md
+  fbd78f1be98a05d2 1-479
+design/35-skill/PRD.md
+  fbd78f1be98a05d2 310-311,336,397
+design/TODO.md
+  fbd78f1be98a05d2 27-30,80-99
+design/README.md
+  fbd78f1be98a05d2 4,12,24-25
+design/20-character/PRD.md
+  fbd78f1be98a05d2 3,5-6,10-11,13-14,24-25,50,70-99,231-234,240-241,247-248,277-290,304-308,333
+design/35-skill/DESIGN.md
+  fbd78f1be98a05d2 367-369,435
+design/20-character/PLAN.md
+  fbd78f1be98a05d2 1-298
+design/00-overview/glossary.md
+  fbd78f1be98a05d2 3,32-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "abb7e74d865ba37012e019c738e032bae8c740df",
+  "prompts": {
+    "fbd78f1be98a05d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfcb6549-f730-4b8d-9ea1-1201b8f21f66",
+        "model": "deepseek-flash"
+      },
+      "human_author": "aorui",
+      "messages": [],
+      "total_additions": 926,
+      "total_deletions": 51,
+      "accepted_lines": 887,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "design/00-overview/glossary.md": {
+          "additions": 6,
+          "deletions": 2,
+          "accepted_lines": 6
+        },
+        "design/README.md": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "design/35-skill/PRD.md": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "design/20-character/DESIGN.md": {
+          "additions": 501,
+          "deletions": 22,
+          "accepted_lines": 479
+        },
+        "design/TODO.md": {
+          "additions": 25,
+          "deletions": 1,
+          "accepted_lines": 24
+        },
+        "design/35-skill/DESIGN.md": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "design/20-character/PLAN.md": {
+          "additions": 312,
+          "deletions": 14,
+          "accepted_lines": 298
+        },
+        "design/20-character/PRD.md": {
+          "additions": 70,
+          "deletions": 10,
+          "accepted_lines": 68
+        }
+      }
+    }
+  }
+}
