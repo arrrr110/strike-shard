@@ -364,6 +364,9 @@ func restore(_data: Dictionary) -> void: pass
 ```
 
 - `SkillRuntime` 由 `GameFlow` 持有（不是 autoload）；`mount(host, skill)` 登记实例。
+- **来源标记**：`SkillInstance` 带 `origin`（`innate` / `card` / `summon`）。角色固有特性
+  在开战时由 `BattleSetup` 以 `origin = innate` 挂载，卡牌授予的技能在出牌时挂载；
+  排序与契约不变。**不另造一套 trait 运行时**（2026-11-12，见 [角色技术方案](../20-character/DESIGN.md)）。
 - `SkillContext` 暴露 `host_id` / `owner_id` / 查询 / `emit`；技能不持有 `Node`。
 - 排序：`priority → card_index → mount_seq`。
 - **技能只返回事件/修正**，不直接写 `hp` / `atk` / 速度。
@@ -429,3 +432,4 @@ func restore(_data: Dictionary) -> void: pass
 | 2026-11-02（最终口径） | 改为**归属方头像攻击力**：对敌方失能角色的伤害记入**攻击方归属方**的一次性攻击力；`TURN_END` 双方各自把攻击力打到对方归属方，**各打各的、不抵消**，随后清零 | 用户明确攻击力归攻击方头像；10 vs 4 → 敌方 -10、我方 -4 |
 | 2026-11-02（定稿补充） | 攻击力只是结算形式/表演；归属方结算放在 `TURN_END` 的**最后**；同时归零 = 平局；失能 = 赛点；棋盘可见、只有手牌不可见 | 用户确认四条收口规则 |
 | 2026-11-02（实现架构） | 补第一切片：文件落点、`Skill`/`GameEvent` 契约、`game_flow` 接缝、#1/#3/#5、归属方攻击力累积与双方 `TURN_END` 结算；明确不做 #2/#4/#6 | 让契约先落代码，而不是继续加规则 |
+| 2026-11-12 | 补 `SkillInstance.origin`（`innate` / `card` / `summon`）：角色固有特性在开战时以 `origin = innate` 挂载，复用同一套技能契约 | 角色池/构筑专题与技能系统对齐 |
